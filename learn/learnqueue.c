@@ -59,10 +59,8 @@ enqueue(struct queue *queue, int val)
 		}
 	    } 
 	    else {
-		__CAS(&queue->tail, tail, next); 
+		__CAS(&queue->tail, tail, next); /* TODO should this be tail->next as arg2 */
 	    }
-		     
-		  
 	}
     }
     __CAS(&queue->tail, tail, node); //update tail to point to newly inserted node
