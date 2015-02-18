@@ -57,12 +57,30 @@ enqueue(struct queue *queue, int val)
 		    break;
 		}
 	    } else {
-		__CAS(&queue->tail, tail, tail->next)
-		     
-		      {
+	      __CAS(&queue->tail, tail, tail->next);
 	    }
 	}
     }
 
 
+}
+
+int
+dequeue(struct queue *queue, int *val)
+{
+    struct node *head, *tail, *next;
+
+    while (1) {
+	head = queue->head;
+	tail = queue->tail;
+	next = head.next;
+	if (head == queue->head) {
+	    if (head == tail) {	      /* list might be empty */
+		if (head->next == NULL) { /* list is definitely empty */
+		    return -1;	      /* dequeue fails on empty list */
+		}
+		__CAS(queue->tail, tail, next);
+	    }
+	}
+    }
 }
