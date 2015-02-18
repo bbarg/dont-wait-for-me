@@ -1,44 +1,18 @@
 #include <stdio.h>
+#include <stdlib.h>
+
 #include <pthread.h>
 #include <assert.h>
-
-#define __CAS __sync_bool_compare_and_swap
-#define POINTER_INIT(node, count)		\
-  {						\
-      .ptr = node,				\
-      .count = count				\
-  }
-
-struct node;
-
-/* TODO
-   - propose that pointer_t is 64 bits wide (half pointer, half count)
- */
-struct pointer_t {
-    struct node *ptr;
-    unsigned int count;
-};
-
-struct node {
-    int val;
-    struct pointer_t next;
-};
-
-struct queue {
-    struct pointer_t head;
-    struct pointer_t tail;
-};
-
+#include "learnqueue.h"
 int
 new_node(struct node *node, int val)
 {
-    node = (node *)malloc(sizeof(struct node));
+    node = (struct node *) malloc(sizeof(struct node));
     if (!node) {
 	return -1;
     }
-    node->val = val;
-    node->next.ptr = NULL;
-    node->next.count = 0;
+    node->val  = val;
+    node->next = NULL;
 
     return 0;
 }
@@ -57,10 +31,8 @@ init_queue(struct queue *queue, int init_val)
 	return -1;
     }
     
-    queue->head.ptr = init_node;
-    queue->head.count = 0;
-    queue->tail.ptr = init_node;
-    queue->tail.count = 0;
+    queue->head = init_node;
+    queue->tail = init_node;
 
     return 0;
 }
@@ -69,7 +41,8 @@ int
 enqueue(struct queue *queue, int val)
 {
     struct node *node;
-    struct pointer_t tail, next;
+    struct node* tail, *next;
+
 
     if (new_node(node, val)) {
 	return -1;
@@ -77,19 +50,15 @@ enqueue(struct queue *queue, int val)
 
     while (1) {
 	tail = queue->tail;
-	next = tail.ptr->next;
-	if (tail = queue->tail) {
-	    if (next.ptr == NULL) {
-		if (__CAS(&tail.ptr->next,
-			  next,
-			  (struct pointer_t *)
-			  { node, next.count + 1 })) {
+	next = tail->next;
+	if (tail == queue->tail ) { //elementwise compare earlier tail and current tail 
+	    if (next == NULL) {
+		if (__CAS(&tail->next, next, node )) {
 		    break;
 		}
 	    } else {
-		__CAS(&queue->tail,
-		      tail,
-		      (struct pointer_t *)
+		__CAS(&queue->tail, tail, tail->next)
+		     
 		      {
 	    }
 	}
