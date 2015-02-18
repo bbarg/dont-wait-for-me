@@ -5,11 +5,11 @@ CC=gcc
 CFLAGS=-Wall -g
 LFLAGS=-lpthread
 
-OBJS= \
-	learncas	\
-	learnqueue
+all: learnqueue learncas
 
-all: $(OBJS)
+learnqueue: learnqueue.h
+
+learncas: 
 
 .PHONY: clean
 clean:

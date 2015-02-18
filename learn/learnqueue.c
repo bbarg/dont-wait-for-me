@@ -4,47 +4,48 @@
 #include <pthread.h>
 #include <assert.h>
 #include "learnqueue.h"
-int
-new_node(struct node *node, int val)
+
+struct node*
+new_node(int val)
 {
-    node = (struct node *) malloc(sizeof(struct node));
+    struct node* node = (struct node *) malloc(sizeof(struct node));
     if (!node) {
-	return -1;
+	return NULL;
     }
     node->val  = val;
     node->next = NULL;
 
-    return 0;
+    return node; 
 }
 
-int
-init_queue(struct queue *queue, int init_val)
+struct queue* 
+init_queue(int init_val)
 {
-    struct node *init_node;
+    struct node *init_node = new_node(init_val); 
     
-    if (new_node(init_node, init_val)) {
-	return -1;
+    if (!init_node) {
+	return NULL;
     }
 
-    queue = (struct queue *) malloc(sizeof(struct queue));
+    struct queue* queue = (struct queue *) malloc(sizeof(struct queue));
     if (!queue) {
-	return -1;
+	return NULL;
     }
     
     queue->head = init_node;
     queue->tail = init_node;
 
-    return 0;
+    return queue;
 }
 
 int
 enqueue(struct queue *queue, int val)
 {
-    struct node *node;
+    struct node *node = new_node(val);
     struct node* tail, *next;
 
 
-    if (new_node(node, val)) {
+    if (!node) {
 	return -1;
     }
 
@@ -56,12 +57,16 @@ enqueue(struct queue *queue, int val)
 		if (__CAS(&tail->next, next, node )) {
 		    break;
 		}
-	    } else {
-	      __CAS(&queue->tail, tail, tail->next);
+	    } 
+	    else {
+		__CAS(&queue->tail, tail, next); 
 	    }
+		     
+		  
 	}
     }
-
+    __CAS(&queue->tail, tail, node); //update tail to point to newly inserted node
+    return 0; 	
 
 }
 
