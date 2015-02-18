@@ -3,6 +3,11 @@
 #include <assert.h>
 
 #define __CAS __sync_bool_compare_and_swap
+#define POINTER_INIT(node, count)		\
+  {						\
+      .ptr = node,				\
+      .count = count				\
+  }
 
 struct node;
 
