@@ -75,16 +75,24 @@ dequeue(struct queue *queue, int *val)
     struct node *head, *tail, *next;
 
     while (1) {
-	head = queue->head;
-	tail = queue->tail;
-	next = head.next;
-	if (head == queue->head) {
-	    if (head == tail) {	      /* list might be empty */
-		if (head->next == NULL) { /* list is definitely empty */
-		    return -1;	      /* dequeue fails on empty list */
-		}
-		__CAS(queue->tail, tail, next);
-	    }
+	    head = queue->head;
+	    tail = queue->tail;
+        next = head->next;
+        if (head == queue->head) {
+            if (head == tail) {	      /* list might be empty */
+                if (head->next == NULL) { /* list is definitely empty */
+                    return -1;	      /* dequeue fails on empty list */
+                }
+                __CAS(&queue->tail, tail, next);
+            }
+            else {
+                if (__CAS(&queue->head, head, next)) {
+                    break;
+                }
+            }
+        }
+
 	}
-    }
+    free(head); /* not sure if deallocation required */ 
+    return 0; 
 }
