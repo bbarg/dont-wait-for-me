@@ -86,6 +86,7 @@ dequeue(struct queue *queue, int *val)
                 __CAS(&queue->tail, tail, next);
             }
             else {
+                *val = next->val;  
                 if (__CAS(&queue->head, head, next)) {
                     break;
                 }

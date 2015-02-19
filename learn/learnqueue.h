@@ -24,6 +24,9 @@ struct queue {
 
 struct node* new_node(int); 
 struct queue* init_queue(int); 
-int enqueue(struct queue*, int); 
+int enqueue(struct queue*, int);
+int dequeue(struct queue*, int*); 
+
+
 
 
