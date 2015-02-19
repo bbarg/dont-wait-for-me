@@ -60,13 +60,31 @@ enqueue(struct queue *queue, int val)
 		}
 	    } 
 	    else {
-		__CAS(&queue->tail, tail, next); 
+		__CAS(&queue->tail, tail, next); /* TODO should this be tail->next as arg2 */
 	    }
-		     
-		  
 	}
     }
     __CAS(&queue->tail, tail, node); //update tail to point to newly inserted node
     return 0; 	
 
+}
+
+int
+dequeue(struct queue *queue, int *val)
+{
+    struct node *head, *tail, *next;
+
+    while (1) {
+	head = queue->head;
+	tail = queue->tail;
+	next = head.next;
+	if (head == queue->head) {
+	    if (head == tail) {	      /* list might be empty */
+		if (head->next == NULL) { /* list is definitely empty */
+		    return -1;	      /* dequeue fails on empty list */
+		}
+		__CAS(queue->tail, tail, next);
+	    }
+	}
+    }
 }
