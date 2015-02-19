@@ -41,4 +41,5 @@ main(int argc, char **argv)
     } else {
         printf("FUCK NO!!!\n");
     }
+    return 0; 
 }

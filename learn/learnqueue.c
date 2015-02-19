@@ -27,9 +27,10 @@ init_queue(int init_val)
 	return NULL;
     }
 
-    struct queue* queue = (struct queue *) malloc(sizeof(struct queue));
+    struct queue* queue = (struct queue*) malloc (sizeof(struct queue)); 
+
     if (!queue) {
-	return NULL;
+	    return NULL;
     }
     
     queue->head = init_node;
