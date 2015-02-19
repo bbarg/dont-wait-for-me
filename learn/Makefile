@@ -2,15 +2,25 @@
 # building lock-free learning programs
 
 CC=gcc
-CFLAGS=-Wall -g
-LFLAGS=-lpthread
 
-all: learnqueue learncas
+INCLUDES = 
 
-learnqueue: learnqueue.h
+CFLAGS=-Wall -g $(INCLUDES)
+LDFLAGS=-g 
+LDLIBS=-lpthread
+
+main: test_queue learncas
+
+test_queue: test_queue.o learnqueue.o 
+
+test_queue.o: test_queue.c learnqueue.h
+
+learnqueue.o: learnqueue.c learnqueue.h
 
 learncas: 
 
 .PHONY: clean
 clean:
-	rm -rf $(OBJS)
+	rm -rf *.o test_queue learnqueue learncas core a.out 
+.PHONY: all 
+all: clean main 
