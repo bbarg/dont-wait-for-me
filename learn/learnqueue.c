@@ -97,3 +97,25 @@ dequeue(struct queue *queue, int *val)
     free(head); /* not sure if deallocation required */ 
     return 0; 
 }
+
+void delete_queue(struct queue* queue) {
+    //not concurrency safe 
+    struct node *head, *tail, *next;
+
+    head = queue->head;
+    tail = queue->tail;
+    next = head->next;
+    if (head == queue->head) {
+        if (head == tail) {	      /* list might be empty */                 
+            if (next == NULL) { /* list is definitely empty */
+                printf("Deleting queue by deallocating sentinel node and queue struct\n");
+                free(head); 
+                free(queue); 
+                return; 
+            }
+        }
+    }
+    return;
+}
+
+

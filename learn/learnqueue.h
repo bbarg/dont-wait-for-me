@@ -27,6 +27,7 @@ struct queue* init_queue(int);
 int enqueue(struct queue*, int);
 int dequeue(struct queue*, int*); 
 
+void delete_queue(struct queue*);
 
 
 
