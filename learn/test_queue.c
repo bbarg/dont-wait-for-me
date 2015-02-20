@@ -2,8 +2,13 @@
 #include <stdlib.h>
 #include <stdio.h> 
 
-void test_queue() {
-
+void test_queue_simple() {
+    /*
+     * Simple single threaded test that 
+     * initializes the queue and sentinel {0}
+     * and then enqueues 10 nodes and 
+     * deques them 
+     */
     struct queue* q = init_queue(0); 
 
     int i, r, enq_ret;
@@ -27,8 +32,14 @@ void test_queue() {
     delete_queue(q);  
 }
 
+
+void test_queue_mt() {
+    printf("Testing ms-queue with multiple produces and consumers"); 
+
+}
+
 int main(int argc, char** argv){ 
     
-    test_queue();
+    test_queue_simple();
     return 0; 
 }
