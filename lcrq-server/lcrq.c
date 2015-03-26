@@ -379,11 +379,45 @@ inline Object dequeue(int pid) {
     }
 }
 
-/* ----------------------------------------------------------------- */
-/* msq-queue API implementation                                      */
-/* ----------------------------------------------------------------- */
+/* ----------------------------------------------------------------- 
+   msq-queue API implementation                                      
+   ----------------------------------------------------------------- 
+   Because enqueue and dequeue do not use their pid argument, we just
+   pass 0 by default */
 
-void queue_init(struct queue *q) { }
-void queue_destroy(struct queue *q) { }
-void queue_put(struct queue *q, int sock) { }
-int queue_get(struct queue *q) { return 0; }
+/* This implementation is fairly simple, since the lcrq code already
+   provides a global initializer */
+void queue_init(struct queue *q) {
+    SHARED_OBJECT_INIT();
+}
+
+void queue_destroy(struct queue *q) {
+    /* void for now */
+}
+
+/* This is also pretty simple. Since the lcrq can just store int32_t,
+   we pass the socket directly as the value. */
+void queue_put(struct queue *q, int sock) {
+    #ifdef DEBUG
+    printf("[%lu] enqueue socket %d\n", pthread_self());
+    #endif
+
+    enqueue((Object) sock, 0); 	/* ok because sock will fit in int32_t */
+}
+
+/* This will be more complicated. We have to maintain blocking
+   semantic, even though the lcrq is not a blocking queue. Our
+   initial implementation will just involve polling. */
+int queue_get(struct queue *q) {
+    int sock, success;
+
+    success = 0;
+
+    while (!success) {
+	sock = (int) dequeue(0);
+	if (sock == -1)
+	    sched_yield();
+	else
+	    return sock;
+    }
+}
