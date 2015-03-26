@@ -16,7 +16,7 @@
 
 #include "config.h"
 
-
+#ifdef THREAD_PIN
 int _thread_pin(unsigned int cpu_id)
 {
     pthread_setconcurrency(USE_CPUS);
@@ -46,6 +46,8 @@ int _thread_pin(unsigned int cpu_id)
     return ret;
 #endif
 }
+#endif	/* THREAD_PIN */
+
 
 #endif
 

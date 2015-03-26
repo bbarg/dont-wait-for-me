@@ -42,6 +42,8 @@
 #include "pool.h"
 #include "thread.h"
 
+#include "msg-queue.h"
+
 // Definition: RING_POW
 // --------------------
 // The LCRQ's ring size will be 2^{RING_POW}.
@@ -121,6 +123,9 @@ typedef struct RingQueue {
     struct RingQueue *next __attribute__ ((aligned (128)));
     RingNode array[RING_SIZE];
 } RingQueue __attribute__ ((aligned (128)));
+
+RingQueue *head;
+RingQueue *tail;
 
 inline void init_ring(RingQueue *r) {
     int i;
@@ -373,3 +378,12 @@ inline Object dequeue(int pid) {
         }
     }
 }
+
+/* ----------------------------------------------------------------- */
+/* msq-queue API implementation                                      */
+/* ----------------------------------------------------------------- */
+
+void queue_init(struct queue *q) { }
+void queue_destroy(struct queue *q) { }
+void queue_put(struct queue *q, int sock) { }
+int queue_get(struct queue *q) { return 0; }

@@ -1,10 +1,23 @@
+# Makefile for lcrq-server
+#
+# If you want to set any compile-time flags (like turning on CAS stats
+# for the lcrq), simply run
+# 	make <target> -DOPT="<options>"
+
 CC=gcc
-CFLAGS=-Wall -Werror -g
+INCLUDES=-I./synch1.0.1
+CFLAGS=-Wall -g $(INCLUDES) $(OPT)
 LDLIBS=-pthread
 LDFLAGS=-g
 
+OBJ=	\
+	http-server \
+	lcrq-server
+
 .PHONY: clean all
-all: http-server
+all: lcrq-server http-server
+
+lcrq-server: lcrq.o
 
 clean:
-	rm -rf http-server *.o
+	rm -rf $(OBJ) *.o

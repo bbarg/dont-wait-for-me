@@ -15,6 +15,8 @@
 #include <sys/stat.h>   /* for stat() */
 #include <pthread.h>    /* POSIX threads, require -lpthread */
 #include <errno.h>
+#include "msg-queue.h"
+
 #define MAXPENDING 5    /* Maximum outstanding connection requests */
 
 #define DISK_IO_BUF_SIZE 4096
@@ -25,143 +27,16 @@
 #define N_THREADS 16
 #define QUEUE_POISON (-5)
 
-
 static int flag_term = 0; 
-
-/*
- * Implements a message that can be posted on a blocking thread queue
- */
-struct message {
-    int sock; // Payload, in our case a new client connection
-    struct message *next; // Next message on the list
-};
-
-
-/*
- * This structure implements a blocking POSIX thread queue. If a thread
- * attempts to pop an item from an empty queue it is blocked until another
- * thread appends a new item.
- */
-struct queue {
-    pthread_mutex_t mutex; // A mutex used to protect the queue itself
-    pthread_cond_t cond;   // A condition variable for threads to sleep on
-    struct message *first; // First message in the queue
-    struct message *last;  // Last message in the queue
-    unsigned int length;   // Number of elements on the queue
-};
-
-
 static pthread_t thread_pool[N_THREADS];
-
 const char *webRoot = NULL;
-
 static struct queue thread_queue;
-
 
 static void die(const char *message)
 {
     perror(message);
     exit(1);
 }
-
-
-static void queue_init(struct queue *q)
-{
-    memset(q, 0, sizeof(*q));
-
-    if (pthread_cond_init(&q->cond, NULL) != 0)
-        die("Cannot initialize queue condition variable");
-
-    if (pthread_mutex_init(&q->mutex, NULL) != 0) {
-        pthread_cond_destroy(&q->cond);
-        die("Cannot initialize queue mutex");
-    }
-}
-
-
-static void queue_destroy(struct queue *q)
-{
-    struct message *tmp;
-
-    // First of all delete all elements currently on the queue
-    pthread_mutex_lock(&q->mutex);
-    while(q->first) {
-        tmp = q->first;
-        q->first = q->first->next;
-        free(tmp);
-    }
-    q->last = NULL;
-    q->length = 0;
-    pthread_mutex_unlock(&q->mutex);
-
-    // After that destroy the mutex and the condition variable
-    pthread_mutex_destroy(&q->mutex);
-    pthread_cond_destroy(&q->cond);
-}
-
-
-static void queue_put(struct queue *q, int sock)
-{
-    struct message *msg;
-
-    // Create a new message object, initialized to all zeroes and store the
-    // socket file descriptor in its sock attribute
-    msg = (struct message *)calloc(1, sizeof(*msg));
-    if (msg == NULL)
-        die("Out of memory");
-    msg->sock = sock;
-
-    // Append the new message to the queue
-    pthread_mutex_lock(&q->mutex);
-    if (q->last == NULL) {
-        q->last = msg;
-        q->first = msg;
-    } else {
-        q->last->next = msg;
-        q->last = msg;
-    }
-
-    // If the queue was previously empty, wakep up any threads that might be
-    // sleeping, waiting for the queue to contain data
-    if (q->length == 0)
-        pthread_cond_broadcast(&q->cond);
-    q->length++;
-    pthread_mutex_unlock(&q->mutex);
-}
-
-
-int queue_get(struct queue *q)
-{
-    int sock;
-    struct message *msg;
-
-    pthread_mutex_lock(&q->mutex);
-
-    /* Since all the sleeping threads content for the data on the queue, we
-     * need to check if the queue is non-empty after we woke up. If yes we
-     * won, if not we go back to sleep on the condition variable.
-     * pthread_cond_wait unlocks the give mutex and suspends the thread.
-     */
-    while (q->first == NULL) {
-        pthread_cond_wait(&q->cond, &q->mutex);
-    }
-
-    // We won this round, remove the data from the queue and return it.
-    msg = q->first;
-    q->first = q->first->next;
-    q->length--;
-
-    if (q->first == NULL) {
-        q->last = NULL;
-        q->length = 0;
-    }
-
-    sock = msg->sock;
-    free(msg);
-    pthread_mutex_unlock(&q->mutex);
-    return sock;
-}
-
 
 /*
  * Create a listening socket bound to the given port.
