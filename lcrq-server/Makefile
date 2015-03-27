@@ -16,11 +16,12 @@ OBJ=	\
 	msq
 
 .PHONY: clean all
-all: lcrq-server http-server
+all: lcrq-server msq http-server
 
 lcrq-server: lcrq.o
 
 msq: ms-queue-http-server.o
+	gcc $(LDFLAGS) ms-queue-http-server.o $(LDLIBS) -o msq
 
 clean:
 	rm -rf $(OBJ) *.o
