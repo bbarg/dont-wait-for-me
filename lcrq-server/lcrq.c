@@ -42,7 +42,7 @@
 #include "pool.h"
 #include "thread.h"
 
-#include "msg-queue.h"
+#include "lcrq-msg-queue.h"
 
 // Definition: RING_POW
 // --------------------

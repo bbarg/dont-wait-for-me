@@ -15,7 +15,7 @@
 #include <sys/stat.h>   /* for stat() */
 #include <pthread.h>    /* POSIX threads, require -lpthread */
 #include <errno.h>
-#include "msg-queue.h"
+#include "lcrq-msg-queue.h"
 
 #define MAXPENDING 5    /* Maximum outstanding connection requests */
 
