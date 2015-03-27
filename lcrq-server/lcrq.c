@@ -387,8 +387,13 @@ inline Object dequeue(int pid) {
 
 /* This implementation is fairly simple, since the lcrq code already
    provides a global initializer */
+#include "futex_event.h"
+
+futex_t futex_val;
+
 void queue_init(struct queue *q) {
     SHARED_OBJECT_INIT();
+    futex_val = 0;
 }
 
 void queue_destroy(struct queue *q) {
@@ -398,11 +403,13 @@ void queue_destroy(struct queue *q) {
 /* This is also pretty simple. Since the lcrq can just store int32_t,
    we pass the socket directly as the value. */
 void queue_put(struct queue *q, int sock) {
-    #ifdef DEBUG
+#ifdef DEBUG
     printf("[%lu] enqueue socket %d\n", pthread_self());
-    #endif
+#endif
 
-    enqueue((Object) sock, 0); 	/* ok because sock will fit in int32_t */
+    enqueue((Object) sock, 0); 	/* ok because sock will fit in int32_t
+				   */
+    futex_signal(futex_val);
 }
 
 /* This will be more complicated. We have to maintain blocking
@@ -412,12 +419,13 @@ void queue_put(struct queue *q, int sock) {
 int queue_get(struct queue *q) {
     int sock;
 
-    while (1) {
-	sock = (int) dequeue(0);
-	if (sock == -1) {
-	    sched_yield();
-	} else {
-	    return sock;
-	}
+    while ((sock = (int) dequeue(0)) == -1) {
+	futex_wait(futex_val);
     }
+    
+#ifdef DEBUG
+    printf("[%lu] dequeue got socket %d\n", pthread_self());
+#endif
+    
+    return sock;
 }
