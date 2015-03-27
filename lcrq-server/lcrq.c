@@ -407,8 +407,10 @@ void queue_put(struct queue *q, int sock) {
     printf("[%lu] enqueue socket %d\n", pthread_self());
 #endif
 
-    enqueue((Object) sock, 0); 	/* ok because sock will fit in int32_t
-				   */
+    enqueue((Object) sock, 0); 	/* ok since sock will fit in
+				   int32_t */
+
+    futex_val++;
     futex_signal(futex_val);
 }
 
