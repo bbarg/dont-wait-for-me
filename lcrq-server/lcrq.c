@@ -193,7 +193,8 @@ static void SHARED_OBJECT_INIT() {
 
 inline void fixState(RingQueue *rq) {
 
-    uint64_t t, h, n;
+    /* (bbarg) unused in original implementation */
+    // uint64_t t, h, n;
 
     while (1) {
         uint64_t t = FAA64(&rq->tail, 0);
@@ -336,7 +337,7 @@ inline Object dequeue(int pid) {
 
             if (likely(!is_empty(val))) {
                 if (likely(idx == h)) {
-                    if (CAS2((uint64_t*)cell, val, cell_idx, -1, unsafe | h + RING_SIZE))
+                    if (CAS2((uint64_t*)cell, val, cell_idx, -1, unsafe | (h + RING_SIZE)))
                         return val;
                 } else {
                     if (CAS2((uint64_t*)cell, val, cell_idx, val, set_unsafe(idx))) {
@@ -353,10 +354,10 @@ inline Object dequeue(int pid) {
                 uint64_t t = tail_index(tt);
 
                 if (unlikely(unsafe)) { // Nothing to do, move along
-                    if (CAS2((uint64_t*)cell, val, cell_idx, val, unsafe | h + RING_SIZE))
+                    if (CAS2((uint64_t*)cell, val, cell_idx, val, unsafe | (h + RING_SIZE)))
                         break;
                 } else if (t < h + 1 || r > 200000 || crq_closed) {
-                    if (CAS2((uint64_t*)cell, val, idx, val, h + RING_SIZE)) {
+                    if (CAS2((uint64_t*)cell, val, idx, val, (h + RING_SIZE))) {
                         if (r > 200000 && tt > RING_SIZE)
                             BIT_TEST_AND_SET(&rq->tail, 63);
                         break;
@@ -387,13 +388,12 @@ inline Object dequeue(int pid) {
 
 /* This implementation is fairly simple, since the lcrq code already
    provides a global initializer */
-#include "futex_event.h"
-
-futex_t futex_val;
+#include "wait.h"
+static int waiter;
 
 void queue_init(struct queue *q) {
     SHARED_OBJECT_INIT();
-    futex_val = 0;
+    waiter = 0;
 }
 
 void queue_destroy(struct queue *q) {
@@ -409,9 +409,7 @@ void queue_put(struct queue *q, int sock) {
 
     enqueue((Object) sock, 0); 	/* ok since sock will fit in
 				   int32_t */
-
-    futex_val++;
-    futex_signal(futex_val);
+    futex_signal(&waiter);
 }
 
 /* This will be more complicated. We have to maintain blocking
@@ -422,7 +420,7 @@ int queue_get(struct queue *q) {
     int sock;
 
     while ((sock = (int) dequeue(0)) == -1) {
-	futex_wait(futex_val);
+	wait(&waiter);
     }
     
 #ifdef DEBUG
