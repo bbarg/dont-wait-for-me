@@ -385,9 +385,26 @@ inline Object dequeue(int pid) {
    Because enqueue and dequeue do not use their pid argument, we just
    pass 0 by default */
 
+#ifdef YIELD_COUNT
+#include <signal.h>
+
+long yields;
+struct sigaction act;
+
+void print_yields(int n) {
+    printf("yields: %ld\n", yields);
+    exit(1);
+}
+#endif
+
 /* This implementation is fairly simple, since the lcrq code already
    provides a global initializer */
 void queue_init(struct queue *q) {
+#ifdef YIELD_COUNT
+    act.sa_handler = print_yields;
+    sigaction(SIGINT, &act, NULL);
+#endif
+
     SHARED_OBJECT_INIT();
 }
 
@@ -415,6 +432,9 @@ int queue_get(struct queue *q) {
     while (1) {
 	sock = (int) dequeue(0);
 	if (sock == -1) {
+#ifdef YIELD_COUNT
+	    yields++;
+#endif
 	    sched_yield();
 	} else {
 	    return sock;
