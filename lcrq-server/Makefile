@@ -12,12 +12,15 @@ LDFLAGS=-g
 
 OBJ=	\
 	http-server \
-	lcrq-server
+	lcrq-server \
+	msq
 
 .PHONY: clean all
 all: lcrq-server http-server
 
 lcrq-server: lcrq.o
+
+msq: ms-queue-http-server.o
 
 clean:
 	rm -rf $(OBJ) *.o
