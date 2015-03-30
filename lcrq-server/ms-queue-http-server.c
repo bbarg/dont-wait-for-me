@@ -16,6 +16,7 @@
 #include <pthread.h>    /* POSIX threads, require -lpthread */
 #include <errno.h>
 #include <omp.h>
+#include "wait.h"
 #include <stdint.h>
 
 #define MAXPENDING 5    /* Maximum outstanding connection requests */
@@ -142,7 +143,8 @@ inline Object dequeue(int pid) {
 
 
 static int flag_term = 0; 
-
+int queue_len = 0;
+int futex_addr = 0; 
 
 static pthread_t thread_pool[N_THREADS];
 
@@ -166,16 +168,22 @@ void queue_destroy(struct queue* q) {
 
 void queue_put(struct queue* q, int sock) {
     enqueue(sock, 0); 
+//    if (queue_len == 0 ) {
+        broadcast(&futex_addr); 
+//    }
+//  __sync_fetch_and_add(&queue_len, 1); 
+
 
 }
 
 int queue_get(struct queue *q ) {
-    int x = 1;
+    //int x = 1;
     int ret; 
     while ((ret = dequeue(0)) == -1) {
-        sleep(x); 
-        x = (++x % 10); 
+        wait(&futex_addr);
     }
+    //ret = dequeue(0);
+    //__sync_fetch_and_sub(&queue_len, 1);
     return ret; 
 }
 

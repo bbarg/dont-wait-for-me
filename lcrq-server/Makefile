@@ -18,10 +18,13 @@ OBJ=	\
 .PHONY: clean all debug
 all: lcrq-server msq http-server
 
+http-server: libwait.o
+
+
 lcrq-server: lcrq.o
 
-msq: ms-queue-http-server.o
-	gcc $(LDFLAGS) ms-queue-http-server.o $(LDLIBS) -o msq
+msq: ms-queue-http-server.o libwait.o
+	gcc $(LDFLAGS) ms-queue-http-server.o libwait.o $(LDLIBS) -o msq
 
 debug:
 	make OPT="-DDEBUG"

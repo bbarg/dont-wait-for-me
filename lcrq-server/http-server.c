@@ -15,6 +15,8 @@
 #include <sys/stat.h>   /* for stat() */
 #include <pthread.h>    /* POSIX threads, require -lpthread */
 #include <errno.h>
+#include "wait.h"
+
 #define MAXPENDING 5    /* Maximum outstanding connection requests */
 
 #define DISK_IO_BUF_SIZE 4096
@@ -27,7 +29,7 @@
 
 
 static int flag_term = 0; 
-
+int futex_addr = 0; 
 /*
  * Implements a message that can be posted on a blocking thread queue
  */
@@ -76,6 +78,8 @@ static void queue_init(struct queue *q)
         pthread_cond_destroy(&q->cond);
         die("Cannot initialize queue mutex");
     }
+
+    futex_addr = 0; 
 }
 
 
@@ -124,7 +128,8 @@ static void queue_put(struct queue *q, int sock)
     // If the queue was previously empty, wakep up any threads that might be
     // sleeping, waiting for the queue to contain data
     if (q->length == 0)
-        pthread_cond_broadcast(&q->cond);
+        //pthread_cond_broadcast(&q->cond);
+        broadcast(&futex_addr); 
     q->length++;
     pthread_mutex_unlock(&q->mutex);
 }
@@ -143,7 +148,10 @@ int queue_get(struct queue *q)
      * pthread_cond_wait unlocks the give mutex and suspends the thread.
      */
     while (q->first == NULL) {
-        pthread_cond_wait(&q->cond, &q->mutex);
+        pthread_mutex_unlock(&q->mutex);
+        //pthread_cond_wait(&q->cond, &q->mutex);
+        wait(&futex_addr); 
+        pthread_mutex_lock(&q->mutex); 
     }
 
     // We won this round, remove the data from the queue and return it.
