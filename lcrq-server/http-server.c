@@ -24,7 +24,7 @@
 /*
  * Implement a trivial threadpool of pre-created threads
  */
-#define N_THREADS 16
+#define DEFAULT_THREADS 1
 #define QUEUE_POISON (-5)
 
 
@@ -51,9 +51,6 @@ struct queue {
     struct message *last;  // Last message in the queue
     unsigned int length;   // Number of elements on the queue
 };
-
-
-static pthread_t thread_pool[N_THREADS];
 
 const char *webRoot = NULL;
 
@@ -560,7 +557,20 @@ int main(int argc, char *argv[])
 
     int servSock = createServerSocket(servPort);
 
-    for(i = 0; i < N_THREADS; i++) {
+    int nthreads;
+    char *nthreads_str = getenv("NTHREADS");
+
+    if (nthreads_str) {
+	nthreads = atoi(nthreads_str);
+	fprintf(stderr, "-- Starting server with %d worker threads\n", nthreads);
+    } else {
+	nthreads = DEFAULT_THREADS;
+	fprintf(stderr, "-- Defaulting to 1 worker thread; you probably want to set NTHREADS\n");
+    }
+    
+    pthread_t *thread_pool = malloc(sizeof(pthread_t) * nthreads);
+    
+    for(i = 0; i < nthreads; i++) {
         pthread_create(&thread_pool[i], NULL, threadMain, NULL);
     }
 
@@ -570,15 +580,16 @@ int main(int argc, char *argv[])
     mainLoop(servSock);
 
     /* Poison the queue to stop worker threads */ 
-    for (i = 0; i< N_THREADS; i++) {
+    for (i = 0; i< nthreads; i++) {
         queue_put(&thread_queue, QUEUE_POISON);
     }
 
     /* Wait for all the worker threads to exit and destroy queue */ 
-    for(i = 0; i < N_THREADS; i++) {
+    for(i = 0; i < nthreads; i++) {
         pthread_join(thread_pool[i], NULL);
     }
 
+    free(thread_pool);
     queue_destroy(&thread_queue);
     return 0;
 }
