@@ -13,12 +13,15 @@ LDFLAGS=-g
 OBJ=	\
 	http-server \
 	lcrq-server \
-	msq
+	msq	    \
+	http-server-futex
 
 .PHONY: clean all debug
-all: lcrq-server msq http-server
+all: lcrq-server msq http-server http-server-futex
 
 http-server: libwait.o
+
+http-server-futex: libwait.o
 
 lcrq-server: lcrq.o libwait.o
 
