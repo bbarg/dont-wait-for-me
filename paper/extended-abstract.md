@@ -205,7 +205,7 @@ others.
 
 ### Server throughput 
 
-Here, requests are 
+Here, requests are sent from a client program at incrementally increasing requests, and all the requests have a specified timeout. The maximum rate that the server can respond completely to with no dropped or refused requests is the server throughput. This also is a good test of the maximum concurrency the server can support.  
 
 ### Goals of Testing
 - specify that we're looking to see if lock-freedom can make the SPMC
