@@ -1,6 +1,5 @@
 \documentclass[twoside]{article}
 
-
 % ------
 % Fonts and typesetting settings
 \usepackage[sc]{mathpazo}
@@ -262,8 +261,8 @@ Our testing strategy centers around two main goals:
   architecture and how could a lock-free queue possibly circumvent
   those?
 \item How closely can an optimized version of a lock-free-queue based
-   webserver approach the performance (under heavy load) of existing
-   web servers +nginx+, +lighttpd+, and +apache+?
+  webserver approach the performance (under heavy load) of existing
+  web servers \verb+nginx+, \verb+lighttpd+, and \verb+apache+?
 \end{compactitem}
 
 For testing, we make heavy use of HP's \verb+httperf+ utility, which
@@ -289,14 +288,27 @@ times, but this gives a better measurement of average processing rate
 (requests/second) that takes into account nondeterministic factors
 like TCP/IP warmup, network noise, filesystem caching and others.
 
+\subsection{Server throughput}
+
+Here, requests are sent from a client program at incrementally
+increasing requests, and all the requests have a specified
+timeout. The maximum rate that the server can respond completely to
+with no dropped or refused requests is the server throughput. This
+also is a good test of the maximum concurrency the server can support.
+
 \section{Conclusion}
 
 \end{multicols}
 
 \begin{figure}[t]
-\includegraphics[width=1\textwidth]{img/latency-graph.png}
+\includegraphics[width=1\textwidth]{img/max-latency.png}
 \caption{Server latency of the \texttt{http-server}, \texttt{msq-server},
   and \texttt{lcrq-server} under increasing load}
+\end{figure}
+
+\begin{figure}[t]
+\includegraphics[width=1\textwidth]{img/server-response-time.png}
+\caption{put caption here}
 \end{figure}
 
 {\small
