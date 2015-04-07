@@ -278,6 +278,14 @@ L5420 2.50 GHz processors, each with a 12 MB L2 cache. The system has
 16 GB of RAM and runs Ubuntu 14.04.2 LTS (Linux kernel version
 3.13.0-46-generic).
 
+\verb+nginx+, \verb+lighttpd+, and our servers all send
+differently-size response headers, and these headers are on the same
+order of magnitude as or larger than the 10 byte to 1 kilobyte files
+we test with. To normalize the number of bytes sent in each response,
+we decided on 300 bytes as our default total response size and
+requested a file of \verb+300 - server_header_size+ bytes for each
+server.
+
 \subsection{Server latency}
 
 This is a really simple experiment designed to test the server request
@@ -295,6 +303,23 @@ increasing requests, and all the requests have a specified
 timeout. The maximum rate that the server can respond completely to
 with no dropped or refused requests is the server throughput. This
 also is a good test of the maximum concurrency the server can support.
+
+\section{Future optimizations}
+
+To this point, our lock-free server implementations have been done
+rather naively. We propose several possible performance optimizations
+to push the performance of \verb+msq-server+ and \verb+lcrq-server+
+closer to that of \verb+nginx+ and \verb+lighttpd+. In certain cases,
+such as application-level content caching, these are optimizations
+that already exist in the aforementioned applications.
+
+\subsection{Disabling logging}
+By default, \verb+lighthttp+ does no logging, while \verb+nginx+ logs
+to disk, where it can take advantage of buffered I/O. Conversely, the
+default behavior for \verb+http-server+ and its variants is to log
+requests to \verb+stdout+, which is line-buffered 
+
+\subsection{}
 
 \section{Conclusion}
 
