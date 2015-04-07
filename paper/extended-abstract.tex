@@ -107,18 +107,18 @@
   distributed nature of multiple cores.
   
 High performance web servers provide an intriguing application for
-  lock-free algorithms, given that they deal with extremely high
-  concurrency and in certain situations would benefit from progress
-  guarantees (a good example would be an ad exchange server where each
-  request represents explicit monetary value). We observe that most
-  modern servers targeted towards high-concurrency (in particular
-  ~nginx~) have shied away from user-level job distribution and
-  instead rely on kernel mechanisms for reporting on file descriptors
-  (the so-called "event-based" server architecture). Our goal is to
-  explore the limitations of a thread-pooled server architecture that
-  uses a queue for job distribution through comparison with both a
-  locked version of the same architecture and with popular modern
-  high-performance web servers.
+lock-free algorithms, given that they deal with extremely high
+concurrency and in certain situations would benefit from progress
+guarantees (a good example would be an ad exchange server where each
+request represents explicit monetary value). We observe that most
+modern servers targeted towards high-concurrency (in particular
+\verb+nginx+) have shied away from user-level job distribution and
+instead rely on kernel mechanisms for reporting on file descriptors
+(the so-called "event-based" server architecture). Our goal is to
+explore the limitations of a thread-pooled server architecture that
+uses a queue for job distribution through comparison with both a
+locked version of the same architecture and with popular modern
+high-performance web servers.
 
 \section{Related Work}
 
@@ -279,5 +279,10 @@ L5420 2.50 GHz processors, each with a 12 MB L2 cache. The system has
 \section{Conclusion}
 
 \end{multicols}
+
+{\small
+  \bibliographystyle{abbrv}
+  \bibliography{ref}
+}
 
 \end{document}
