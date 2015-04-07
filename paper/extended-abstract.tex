@@ -68,7 +68,9 @@
   \vspace{-5mm} } 
 \date{}
 
-
+% ------
+% Including images
+\usepackage{graphicx}
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 \begin{document}
@@ -128,30 +130,32 @@ related to server performance testing.
 
 \subsection{Lock-free queues}
 
-Lock-free programming has been an active area of research for at least the
-past thirty years. Michael and Scott present a linked list based nonblocking
-queue (referred to as the MS-queue). Their implementation relies on the
-compare-and-swap primitive (CAS) that allows for atomic manipulation of linked 
-list pointers. Kogan and Petrank give a wait-free variant of the MS-queue However both these, and other versions of the MS-queue suffer from scalability
-problems after a small amount of concurrency because threads contend for
-memory locations to perform CAS, and often get stuck in retry loops that are
-prohibitively expensive. 
+Lock-free programming has been an active area of research for at least
+the past thirty years. Michael and Scott present a linked list based
+nonblocking queue (referred to as the MS-queue) \cite{MS96}. Their
+implementation relies on the compare-and-swap primitive (CAS) that
+allows for atomic manipulation of linked list pointers. Kogan and
+Petrank give a wait-free variant of the MS-queue \cite{KP11}. However
+both these, and other versions of the MS-queue suffer from scalability
+problems after a small amount of concurrency because threads contend
+for memory locations to perform CAS, and often get stuck in retry
+loops that are prohibitively expensive.
 
 Other researchers (Hendler et al, Fatourou and Kallimanis) have shown
 that combining-based queues perform better than CAS queues, where a
 combining queue essentially serializes access to the queue by only
-allowing one thread to perform operations on the queue. The other
-threads publish their intended operation on a shared array. The idea
-is that past a small amount of threads, CAS based queue performance
-degrades so much as to be entirely useless, and instead sequential
-access is preferable. In practice, combining queues have an even
-greater advantage as the combining thread is pinned to a single CPU,
-and stays cache-hot throughout its execution.
+allowing one thread to perform operations on the queue \cite{He10,
+  FK12}. The other threads publish their intended operation on a
+shared array. The idea is that past a small amount of threads, CAS
+based queue performance degrades so much as to be entirely useless,
+and instead sequential access is preferable. In practice, combining
+queues have an even greater advantage as the combining thread is
+pinned to a single CPU, and stays cache-hot throughout its execution.
 
 Finally, Afek and Morrison present a linearizable concurrent
 nonblocking queue based on a linked list of concurrent ring buffers
-(LCRQ). This queue avoids the CAS contention problems that plague
-MS-queue variants by using theoretically weaker primitives like
+(LCRQ) \cite{AM13}. This queue avoids the CAS contention problems that
+plague MS-queue variants by using theoretically weaker primitives like
 fetch-and-add (FA). This queue ends up being significantly faster than
 all previous lock-free queues.
 
@@ -160,8 +164,9 @@ all previous lock-free queues.
 Veal and Foong present a detailed analysis of the performance
 scalability of multicore web servers, from which they concludue that
 the primary bottlenecks inhibiting web server scalability were system
-bus hardware design flaws. Hashemian describes strategies for
-benchmarking servers on multicore systems and automation strategies.
+bus hardware design flaws \cite{veal2007performance}. Hashemian
+describes strategies for benchmarking servers on multicore systems and
+automation strategies \cite{hashemian2013improving}.
 
 \section{Implementation}
 As of the current state of our research, we are testing three naive
@@ -197,7 +202,7 @@ threads may sleep on when no jobs are available.
 
 This version is a modified copy of \verb+http-server+ with the single
 locking queue replaced by an implementation of Michael and Scott's
-seminal MPMC lock-free queue [ref to MSQ paper, ref to \verb+sim+]. POSIX
+seminal MPMC lock-free queue [ref to \verb+sim+]. POSIX
 condition variables can no longer be used to implement sleeping on an
 empty queue; instead we use a light wrapper over the \verb+futex+ system
 call. This particular implementation of the Michael and Scott queue
@@ -206,46 +211,46 @@ return value as our sleeping condition.
 
 \subsection{\texttt{lcrq-server}}
 
-Also a modified copy of \verb+http-sever+, \verb+lcrq-server+ replaces the
-locking queue with an implementation of Morrisson and Afek's so-called
-LCRQ [reference to lcrq paper]. The LCRQ is a linked list of ring
-buffers that uses fetch-and-add as its primary atomic primitive (when
-performing operations on an inidividual ring buffer), falling back to
+Also a modified copy of \verb+http-sever+, \verb+lcrq-server+ replaces
+the locking queue with an implementation of Morrisson and Afek's
+so-called LCRQ. The LCRQ is a linked list of ring buffers that uses
+fetch-and-add as its primary atomic primitive (when performing
+operations on an inidividual ring buffer), falling back to
 compare-and-swap only when the new ring buffers need to be added to
 the linked list. Although LCRQ is an MPMC queue, we only have a single
 accepting thread and thus a single enqueuer. Like for the Michael
-Scott queue, \verb+dequeue+ returns -1 on an empty queue, so we use the
-same \verb+futex+ wrapper to implement sleeping.
+Scott queue, \verb+dequeue+ returns -1 on an empty queue, so we use
+the same \verb+futex+ wrapper to implement sleeping.
 
 \subsection{Acknowledged Limitations}
 
 Currently, we do not have a robust lock-free memory allocation or
 memory reclamation strategy in place for \verb+msq-server+ and
-\verb+lcrq-server+. When new nodes are needed, the acceptor thread simply
-calls \verb+malloc+ within each queue implementation to create a new
-node. While this reliance on a locking \verb+malloc+ admittedly affects the
-supposed progress guarantee of the lock-free algorithms we use, we
-hold that it should not signicantly effect performance, as only the
-accepting thread is contending for the \verb+malloc+ lock. Usage or
-implementation of a lock-free (or otherwise robust) memory allocator
-would likely *improve* server performance, given the options for
-per-thread pooling [mckinney reference] and CPU memory locality
-[mckinney also?].
+\verb+lcrq-server+. When new nodes are needed, the acceptor thread
+simply calls \verb+malloc+ within each queue implementation to create
+a new node. While this reliance on a locking \verb+malloc+ admittedly
+affects the supposed progress guarantee of the lock-free algorithms we
+use, we hold that it should not signicantly effect performance, as
+only the accepting thread is contending for the \verb+malloc+
+lock. Usage or implementation of a lock-free (or otherwise robust)
+memory allocator would likely *improve* server performance, given the
+options for per-thread pooling and CPU memory locality
+\cite{hart2007performance}.
 
 As for memory reclamation, the standard and popular lock-free solution
-is Maged M. Michael's hazard pointers
-[hazard pointers reference]. Hazard pointers allow threads operating
-on a shared lock-free object to temporarily ensure that hazardous
-references (for example a pointer to the next item in a queue) will
-remain valid as long as the thread holds one of a finite number of
-hazard pointers to the object. There is a small amount of overhead
-associated with hazard pointers, as the implementation requires both
-declaring the lifetime of hazardous reference within operations on the
-object and a periodic scanning of the global list of hazard pointers
-to lazily free nodes. We acknowledge that performance for
-\verb+lcrq-server+ and \verb+msq-server+ would likely be slower with a hazard
-pointer implementation, but we view generating research claims via
-server profiling as a higher priority in our current research than the
+is Maged M. Michael's hazard pointers \cite{michael2004hazard}. Hazard
+pointers allow threads operating on a shared lock-free object to
+temporarily ensure that hazardous references (for example a pointer to
+the next item in a queue) will remain valid as long as the thread
+holds one of a finite number of hazard pointers to the object. There
+is a small amount of overhead associated with hazard pointers, as the
+implementation requires both declaring the lifetime of hazardous
+reference within operations on the object and a periodic scanning of
+the global list of hazard pointers to lazily free nodes. We
+acknowledge that performance for \verb+lcrq-server+ and
+\verb+msq-server+ would likely be slower with a hazard pointer
+implementation, but we view generating research claims via server
+profiling as a higher priority in our current research than the
 production of a hazard pointers implementation.
 
 \section{Testing Strategy}
@@ -261,24 +266,38 @@ Our testing strategy centers around two main goals:
    web servers +nginx+, +lighttpd+, and +apache+?
 \end{compactitem}
 
-For testing, we make heavy use of HP's `httperf` utility, which allows
-sending adjusting the per-second requests rate and setting timeouts,
-and which has the crucial feature of continuing to send requests
-without recieving replies from the server. This tool, combined with a
-fast enough connection to the server, allows us to max out our
-servers' capacity for concurrency.
+For testing, we make heavy use of HP's \verb+httperf+ utility, which
+allows sending adjusting the per-second requests rate and setting
+timeouts, and which has the crucial feature of continuing to send
+requests without recieving replies from the server
+\cite{mosberger1998httperf}. This tool, combined with a fast enough
+connection to the server, allows us to max out our servers' capacity
+for concurrency.
 
 Our tests were run on a rack server with two quad-core Intel Xeon
 L5420 2.50 GHz processors, each with a 12 MB L2 cache. The system has
 16 GB of RAM and runs Ubuntu 14.04.2 LTS (Linux kernel version
 3.13.0-46-generic).
 
-\subsection{Methodology}
-\subsection{Strengths of Lock-Free Algorithms in Web Servers}
-\subsection{Comparison with Existing Web Servers}
+\subsection{Server latency}
+
+This is a really simple experiment designed to test the server request
+latency. We use \verb+httperf+ to send increasing numbers of requests
+as fast as possible, and measured the total time required to process
+those requests. Larger numbers of files generate longer running test
+times, but this gives a better measurement of average processing rate
+(requests/second) that takes into account nondeterministic factors
+like TCP/IP warmup, network noise, filesystem caching and others.
+
 \section{Conclusion}
 
 \end{multicols}
+
+\begin{figure}[t]
+\includegraphics[width=1\textwidth]{img/latency-graph.png}
+\caption{Server latency of the \texttt{http-server}, \texttt{msq-server},
+  and \texttt{lcrq-server} under increasing load}
+\end{figure}
 
 {\small
   \bibliographystyle{abbrv}
