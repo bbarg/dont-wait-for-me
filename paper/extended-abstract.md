@@ -49,7 +49,7 @@ lock-free algorithms, given that they deal with extremely high
 concurrency and in certain situations would benefit from progress guarantees
 (a good example would be an ad exchange server where each request
 represents explicit monetary value). We observe that most modern
-servers targeted towards high-concurrency (in particular ~nginx~) have
+servers targeted towards high-concurrency (in particular \verb+nginx+) have
 shied away from user-level job distribution and instead rely on kernel
 mechanisms for reporting on file descriptors (the so-called
 "event-based" server architecture). Our goal is to explore the

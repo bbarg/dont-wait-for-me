@@ -41,7 +41,7 @@
 	\pagestyle{fancy}
 	\fancyhead{}
 	\fancyfoot{}
-	\fancyhead[C]{Journal paper template $\bullet$ April 2012 $\bullet$ Vol. XXI, No. 1}
+	\fancyhead[C]{Advanced Operating Systems $\bullet$ April 2015}
 	\fancyfoot[RO,LE]{\thepage}
 
 
@@ -52,14 +52,21 @@
 % ------
 % Maketitle metadata
 \title{\vspace{-15mm}%
-  \fontsize{24pt}{10pt}\selectfont \textbf{Don't Wait For Me:
-    Evaluating the Applicability of Lock-free Queues in High-Load Web
-    Servers} } \author{%
+  \fontsize{24pt}{10pt}\selectfont \textbf{Don't Wait For Me:}\\
+  \textbf{Evaluating the Applicability of Lock-free Queues in High-Load Web
+    Servers} } 
+\author{%
   \large
   \textsc{Benjamin B. Barg}\\[2mm]
   \normalsize	Columbia University in the City of New York \\
   \normalsize \href{mailto:bbb2123@columbia.edu}{bbb223@columbia.edu}
-  \vspace{-5mm} } \date{}
+  \and
+  \large
+  \textsc{Ruchir Khaitan}\\[2mm]
+  \normalsize	Columbia University in the City of New York \\
+  \normalsize \href{mailto:rk2660@columbia.edu}{rk2660@columbia.edu}
+  \vspace{-5mm} } 
+\date{}
 
 
 
@@ -70,20 +77,100 @@
 \thispagestyle{fancy}
 
 \begin{abstract}
-  \noindent 
+  \noindent Using lock-free queue implementations taken from various
+  authors, we present a measurement and comparison study of the
+  performance of multithreaded web servers that use these queues to
+  perform inter-thread communication for a producer-consumer
+  workflow. We then compared our web servers to existing open source
+  options like \verb+nginx+ and \verb+lighttpd+, to compare the
+  relative performance of a server architecture driven by queue
+  message passing versus event polling or thread spawning, to see how
+  effective lock free queues are for this class of
+  program. Preliminary results on an 8 core system show that servers
+  built with various lock free queues are significantly more
+  performant than ones built with globally locked queues, even
+  approaching the performance of \verb+nginx+ when in-application file
+  caching is implemented. However, further experiments and
+  optimiztions are needed before we can draw further conclusions.
 \end{abstract}
 
 \begin{multicols}{2}
-\lettrine[nindent=0em,lines=3]{L}
+  \lettrine[nindent=0em,lines=3]{I}n the past 20 years, there has been
+  an explosion of research into lock-free synchronization. Lock-free
+  objects possess numerous provable guarantees lacked by locked
+  objects, including deadlock immunity and async-signal safety. In
+  addition, operations on lock-free data structures have the potential
+  to be significantly faster than those on comparable locked objects,
+  particuarly under heavy contention. In a world where heavily
+  multicore processors are widely available, user-level applications
+  are well-behooved to use data structures optimized for the
+  distributed nature of multiple cores.
+  
+High performance web servers provide an intriguing application for
+  lock-free algorithms, given that they deal with extremely high
+  concurrency and in certain situations would benefit from progress
+  guarantees (a good example would be an ad exchange server where each
+  request represents explicit monetary value). We observe that most
+  modern servers targeted towards high-concurrency (in particular
+  ~nginx~) have shied away from user-level job distribution and
+  instead rely on kernel mechanisms for reporting on file descriptors
+  (the so-called "event-based" server architecture). Our goal is to
+  explore the limitations of a thread-pooled server architecture that
+  uses a queue for job distribution through comparison with both a
+  locked version of the same architecture and with popular modern
+  high-performance web servers.
+
+\section{Related Work}
+
+The related work for this paper can be split into two sections: that
+which is related to lock free queue implementations and that which is
+related to server performance testing.
+
+\subsection{Lock-free queues}
+
+Lock-free programming has been an active area of research for at least the
+past thirty years. Michael and Scott present a linked list based nonblocking
+queue (referred to as the MS-queue). Their implementation relies on the
+compare-and-swap primitive (CAS) that allows for atomic manipulation of linked 
+list pointers. Kogan and Petrank give a wait-free variant of the MS-queue However both these, and other versions of the MS-queue suffer from scalability
+problems after a small amount of concurrency because threads contend for
+memory locations to perform CAS, and often get stuck in retry loops that are
+prohibitively expensive. 
+
+Other researchers (Hendler et al, Fatourou and Kallimanis) have shown
+that combining-based queues perform better than CAS queues, where a
+combining queue essentially serializes access to the queue by only
+allowing one thread to perform operations on the queue. The other
+threads publish their intended operation on a shared array. The idea
+is that past a small amount of threads, CAS based queue performance
+degrades so much as to be entirely useless, and instead sequential
+access is preferable. In practice, combining queues have an even
+greater advantage as the combining thread is pinned to a single CPU,
+and stays cache-hot throughout its execution.
+
+Finally, Afek and Morrison present a linearizable concurrent
+nonblocking queue based on a linked list of concurrent ring buffers
+(LCRQ). This queue avoids the CAS contention problems that plague
+MS-queue variants by using theoretically weaker primitives like
+fetch-and-add (FA). This queue ends up being significantly faster than
+all previous lock-free queues.
+
+\subsection{Server performance testing}
+
+Veal and Foong present a detailed analysis of the performance
+scalability of multicore web servers, from which they concludue that
+the primary bottlenecks inhibiting web server scalability were system
+bus hardware design flaws. Hashemian describes strategies for
+benchmarking servers on multicore systems and automation strategies.
 
 \section{Implementation}
 As of the current state of our research, we are testing three naive
 implementations of thread-pooled, queue-based web servers, which we
 refer to from here on as \verb+http-server+, \verb+msq-server+, and
-\verb+lcrq-server+. These implementations serve static content on a single
-port, with worker threads sleeping if the work queue is empty. A
-single acceptor thread loops on accept and adds connections to the
-queue (in the form of client socket file descriptors) as they
+\verb+lcrq-server+. These implementations serve static content on a
+single port, with worker threads sleeping if the work queue is
+empty. A single acceptor thread loops on accept and adds connections
+to the queue (in the form of client socket file descriptors) as they
 arrive. All three servers are written solely in C and use the POSIX
 sockets library directly to create and serve client sockets. By
 default, the servers support logging of incoming connections to
@@ -99,14 +186,14 @@ and queue-based server architectures under extremely high load, so we
 have chosen minimal queue-based implementation to isolate the
 performance of the queue within the server.
 
-\subsection{\verb+http-server+}
+\subsection{\texttt{http-server}}
 
 This version of the server is the basis for the others, and uses a
 singly-locked queue (one lock is used for both enqueueing and
 dequeueing). The queue also uses a condition variable that worker
 threads may sleep on when no jobs are available.
 
-\subsection{\verb+msq-server+}
+\subsection{\texttt{msq-server}}
 
 This version is a modified copy of \verb+http-server+ with the single
 locking queue replaced by an implementation of Michael and Scott's
@@ -117,7 +204,7 @@ call. This particular implementation of the Michael and Scott queue
 returns -1 whenever a \verb+dequeue+ fails on an empty queue; we use that
 return value as our sleeping condition.
 
-\subsection{\verb+lcrq-server+}
+\subsection{\texttt{lcrq-server}}
 
 Also a modified copy of \verb+http-sever+, \verb+lcrq-server+ replaces the
 locking queue with an implementation of Morrisson and Afek's so-called
