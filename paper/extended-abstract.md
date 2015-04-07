@@ -48,8 +48,15 @@ High performance web servers provide an intriguing application for
 lock-free algorithms, given that they deal with extremely high
 concurrency and in certain situations would benefit from progress guarantees
 (a good example would be an ad exchange server where each request
-represents explicit monetary value). The dual needs of high throughput and low latency are characteristic of programs that are well suited for lock free
-data structures. Furthermore, FIFO queues are commonly used to create a producer-consumer data structure that is commonly used in many other parallel applications and operating systems, and this study is relevant to those as well.
+represents explicit monetary value). We observe that most modern
+servers targeted towards high-concurrency (in particular ~nginx~) have
+shied away from user-level job distribution and instead rely on kernel
+mechanisms for reporting on file descriptors (the so-called
+"event-based" server architecture). Our goal is to explore the
+limitations of a thread-pooled server architecture that uses a queue
+for job distribution through comparison with both a locked version of
+the same architecture and with popular modern high-performance web
+servers.
 
 ## Related Work
 
@@ -83,12 +90,114 @@ Finally, Afek and Morrison present a linearizable concurrent nonblocking queue b
 Veal and Foong present a detailed analysis of the performance scalability of multicore web servers, from which they concludue that the primary bottlenecks inhibiting web server scalability were system bus hardware design flaws. Hashemian describes strategies for benchmarking servers on multicore systems and automation strategies.  
 
 ## Implementation
-### Basic HTTP-Server
-### Michael and Scott Lock-Free Queue Server
-### Morrisson and Afek LCRQ Server
+
+As of the current state of our research, we are testing three naive
+implementations of thread-pooled, queue-based web servers, which we
+refer to from here on as `http-server`, `msq-server`, and
+`lcrq-server`. These implementations serve static content on a single
+port, with worker threads sleeping if the work queue is empty. A
+single acceptor thread loops on accept and adds connections to the
+queue (in the form of client socket file descriptors) as they
+arrive. All three servers are written solely in C and use the POSIX
+sockets library directly to create and serve client sockets. By
+default, the servers support logging of incoming connections to
+`stdout`, although in Section 4 we observe a marked performance
+increase when logging is disabled.
+
+It should be clarified that none of `http-server`, `msq-server`, or
+`lcrq-server` are intended as full-featured and robust servers that
+would at this point in time be used to replace existing servers
+(although the their feature-set isn't extremely far away from that of
+`lighttpd`). Our goal is to compare event-based and queue-based server
+architectures under extremely high load, so we have chosen minimal
+queue-based implementation to isolate the performance of the queue
+within the server.
+
+### `http-server`
+
+This version of the server is the basis for the others, and uses a
+singly-locked queue (one lock is used for both enqueueing and
+dequeueing). The queue also uses a condition variable that worker
+threads may sleep on when no jobs are available.
+
+### `msq-server`
+
+This version is a modified copy of `http-server` with the single
+locking queue replaced by an implementation of Michael and Scott's
+seminal MPMC lock-free queue [ref to MSQ paper, ref to `sim`]. POSIX
+condition variables can no longer be used to implement sleeping on an
+empty queue; instead we use a light wrapper over the `futex` system
+call. This particular implementation of the Michael and Scott queue
+returns -1 whenever a `dequeue` fails on an empty queue; we use that
+return value as our sleeping condition.
+
+### `lcrq-server`
+
+Also a modified copy of `http-sever`, `lcrq-server` replaces the
+locking queue with an implementation of Morrisson and Afek's so-called
+LCRQ [reference to lcrq paper]. The LCRQ is a linked list of ring
+buffers that uses fetch-and-add as its primary atomic primitive (when
+performing operations on an inidividual ring buffer), falling back to
+compare-and-swap only when the new ring buffers need to be added to
+the linked list. Although LCRQ is an MPMC queue, we only have a single
+accepting thread and thus a single enqueuer. Like for the Michael
+Scott queue, `dequeue` returns -1 on an empty queue, so we use the
+same `futex` wrapper to implement sleeping.
+
+### Acknowledged Limitations
+
+Currently, we do not have a robust lock-free memory allocation or
+memory reclamation strategy in place for `msq-server` and
+`lcrq-server`. When new nodes are needed, the acceptor thread simply
+calls `malloc` within each queue implementation to create a new
+node. While this reliance on a locking `malloc` admittedly affects the
+supposed progress guarantee of the lock-free algorithms we use, we
+hold that it should not signicantly effect performance, as only the
+accepting thread is contending for the `malloc` lock. Usage or
+implementation of a lock-free (or otherwise robust) memory allocator
+would likely *improve* server performance, given the options for
+per-thread pooling [mckinney reference] and CPU memory locality
+[mckinney also?].
+
+As for memory reclamation, the standard and popular lock-free solution
+is Maged M. Michael's hazard pointers
+[hazard pointers reference]. Hazard pointers allow threads operating
+on a shared lock-free object to temporarily ensure that hazardous
+references (for example a pointer to the next item in a queue) will
+remain valid as long as the thread holds one of a finite number of
+hazard pointers to the object. There is a small amount of overhead
+associated with hazard pointers, as the implementation requires both
+declaring the lifetime of hazardous reference within operations on the
+object and a periodic scanning of the global list of hazard pointers
+to lazily free nodes. We acknowledge that performance for
+`lcrq-server` and `msq-server` would likely be slower with a hazard
+pointer implementation, but we view generating research claims via
+server profiling as a higher priority in our current research than the
+production of a hazard pointers implementation.
+
 ## Testing Strategy
-- platform
-- note of the `dont-wait-for-me` git repo for testing reproduction
+
+Our testing strategy centers around two main goals:
+
+1. What are the traditional bottlenecks of a queue-based web server
+   architecture and how could a lock-free queue possibly circumvent
+   those?
+2. How closely can an optimized version of a lock-free-queue based
+   webserver approach the performance (under heavy load) of existing
+   web servers `nginx`, `lighttpd`, and `apache`?
+
+For testing, we make heavy use of HP's `httperf` utility, which allows
+sending adjusting the per-second requests rate and setting timeouts,
+and which has the crucial feature of continuing to send requests
+without recieving replies from the server. This tool, combined with a
+fast enough connection to the server, allows us to max out our
+servers' capacity for concurrency.
+
+Our tests were run on a rack server with two quad-core Intel Xeon
+L5420 2.50 GHz processors, each with a 12 MB L2 cache. The system has
+16 GB of RAM and runs Ubuntu 14.04.2 LTS (Linux kernel version
+3.13.0-46-generic).
+
 ### Goals of Testing
 - specify that we're looking to see if lock-freedom can make the SPMC
   strategy viable for serving static content
@@ -99,6 +208,12 @@ Veal and Foong present a detailed analysis of the performance scalability of mul
   + atomic primitive implementation
   + per-CPU cache activity
   + [other stuff we don't know about yet]
+
 ### Strengths of Lock-Free Algorithms in Web Servers
+
+Our initial tests are with a two naive implementations of
+thread-pooled servers that use a lock-free queue to distribute
+connections from a single accepting thread to several worker threads. 
+
 ### Comparison with Existing Web Servers
 ## Conclusion
