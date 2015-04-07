@@ -317,11 +317,26 @@ that already exist in the aforementioned applications.
 By default, \verb+lighthttp+ does no logging, while \verb+nginx+ logs
 to disk, where it can take advantage of buffered I/O. Conversely, the
 default behavior for \verb+http-server+ and its variants is to log
-requests to \verb+stdout+, which is line-buffered 
+requests to \verb+stdout+, which is line-buffered and therefore incurs
+a heavy cost at high request rates. In preliminary testing, disabling
+\verb+stdout+ logging for \verb+lcrq-server+ netted a roughly 10\%
+performance increase. We plan to test the \verb+lcrq-server+'s
+performance when logging to a file as well.
 
-\subsection{}
+\subsection{Application level content-cache}
+While the OS maintains a file buffer cache, using it requires the
+syscall overhead from \verb+read+. To reduce this overhead, several
+existing servers (including \verb+nginx+) maintain a user-level file
+cache so that more content can be served via user-space memory
+access. We have not yet implemented a full cache solution, but we did
+simulate the effects of such a cache by modifying \verb+lcrq-server+
+to send static global buffer instead of pulling the requested file
+system. This preliminary test also demonstrated a 10\% performance
+improvement. We thus expect a fully-featured user-space content cache
+to contribute a meaningful speedup.
 
 \section{Conclusion}
+For now, 
 
 \end{multicols}
 
