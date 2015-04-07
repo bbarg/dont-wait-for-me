@@ -181,7 +181,7 @@ Our testing strategy centers around two main goals:
 
 1. What are the traditional bottlenecks of a queue-based web server
    architecture and how could a lock-free queue possibly circumvent
-   those?
+   those? 
 2. How closely can an optimized version of a lock-free-queue based
    webserver approach the performance (under heavy load) of existing
    web servers `nginx`, `lighttpd`, and `apache`?
@@ -197,6 +197,15 @@ Our tests were run on a rack server with two quad-core Intel Xeon
 L5420 2.50 GHz processors, each with a 12 MB L2 cache. The system has
 16 GB of RAM and runs Ubuntu 14.04.2 LTS (Linux kernel version
 3.13.0-46-generic).
+
+### Server latency 
+
+This is a really simple experiment designed to test the server request latency. We use httperf to send increasing numbers of requests as fast as possible, and measured the total time required to process those requests. Larger numbers of files generate longer running test times, but this gives a better measurement of average processing rate (requests/second) that takes into account nondeterministic factors like TCP/IP warmup, network noise, filesystem caching and
+others.  
+
+### Server throughput 
+
+Here, requests are 
 
 ### Goals of Testing
 - specify that we're looking to see if lock-freedom can make the SPMC
