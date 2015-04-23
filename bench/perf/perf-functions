@@ -1,26 +1,27 @@
 #!/bin/bash
 
 export server_dir="../../../lcrq-server/"
-export servers="http-server msq lcrq-server"
+export servers="http-server"
 
 function start_server () {
-    $server = $1
-    killall http-server msq lcrq-server
+    server=$1
     export NTHREADS=$2
-    $server_dir/$server 8888 ~/html &> /dev/null &
+    port=$3
+    killall http-server msq lcrq-server &> /dev/null
+    echo "$server_dir/$server 8888 ~/html &> /dev/null &"
+    $server_dir/$server $port ~/html &> /dev/null &
     export server_pid=$!
+    echo "$server running with PID=$server_pid"
 }
     
 function report_n_threads () {
-    test_name=$2
-    if [[ -z $test_name ]]; then
-	test_name=$RANDOM
-    fi
-    perf report --no-children -i $server-$NTHREADS-workers-$test_name
+    perf report --no-children -i $server-$NTHREADS.data
 }
 
-function start_report () {
+function start_record () {
     server=$1
+    echo "perf record -g -e cpu-clock,task-clock -p $server_pid \
+	 -o $server-$NTHREADS.data -- sleep 5"
     perf record -g -e cpu-clock,task-clock -p $server_pid \
-	 -o $server-$NTHREADS-workers-$1 -- sleep 5
+	 -o $server-$NTHREADS.data -- sleep 5
 }
