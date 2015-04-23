@@ -14,16 +14,20 @@ OBJ=	\
 	http-server \
 	lcrq-server \
 	msq	    \
-	http-server-futex
+	http-server-futex \
+	http-server-cache \
+	lcrq-server-cache
 
 .PHONY: clean all debug
-all: lcrq-server msq http-server http-server-futex
+all: $(OBJ)
 
 http-server: libwait.o
 
 http-server-futex: libwait.o
 
 lcrq-server: lcrq.o libwait.o
+
+lcrq-server-cache: lcrq.o libwait.o
 
 msq: ms-queue-http-server.o libwait.o
 	gcc $(LDFLAGS) ms-queue-http-server.o libwait.o $(LDLIBS) -o msq
