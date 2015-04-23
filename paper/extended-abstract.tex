@@ -10,7 +10,7 @@
 
 % ------
 % Page layout
-\usepackage[hmarginratio=1:1,top=32mm,columnsep=20pt]{geometry}
+\usepackage[hmarginratio=1:1,top=32mm,columnsep=20pt,margin={2.54cm,2.54cm}]{geometry}
 \usepackage[font=it]{caption}
 \usepackage{paralist}
 \usepackage{multicol}
@@ -25,7 +25,6 @@
 \usepackage{abstract}
 	\renewcommand{\abstractnamefont}{\normalfont\bfseries}
 	\renewcommand{\abstracttextfont}{\normalfont\small\itshape}
-
 
 % ------
 % Titling (section/subsection)
@@ -244,9 +243,10 @@ requests without recieving replies from the server
 connection to the server, allows us to max out our servers' capacity
 for concurrency.
 
-Our tests were run on a rack server with two quad-core Intel Xeon
-L5420 2.50 GHz processors, each with a 12 MB L2 cache. The system has
-16 GB of RAM and runs Ubuntu 14.04.2 LTS (Linux kernel version
+Our tests were run between two identical rack servers housed in the
+same building. Each server has two quad-core Intel Xeon L5420 2.50 GHz
+processors, each of which have with a 12 MB L2 cache. Both servers
+have 16 GB of RAM, and both run Ubuntu 14.04.2 LTS (Linux kernel version
 3.13.0-46-generic).
 
 \verb+nginx+, \verb+lighttpd+, and our servers all send
@@ -261,9 +261,13 @@ server.
 
 \begin{Figure}
 \includegraphics[width=\linewidth]{img/max-latency.png}
-\captionof{figure}{Server latency of the \texttt{http-server},
-  \texttt{msq-server}, and \texttt{lcrq-server} under increasing load}
+\captionof{figure}{}
 \end{Figure}
+\begin{Figure}
+\includegraphics[width=\linewidth]{img/requests-vs-connection-time.png}
+\captionof{figure}{}
+\end{Figure}
+
 
 This is a really simple experiment designed to test the server request
 latency. We use \verb+httperf+ to send increasing numbers of requests
@@ -345,6 +349,37 @@ production of a hazard pointers implementation.
 
 \section{Conclusion}
 
+Thus far, it has been challenging to max out load on the servers we
+are testing. Some of these bottlenecks come from system imposed limits
+on open file descriptors that we have just begun to modify
+(\verb+ulimit -n+), while others come from limitations of
+\verb+httperf+ (we may need to recompile \verb+httperf+ to use more
+than 1024 file descriptors).
+
+We have also been testing solely small file sizes with the motivation
+that such tests better expose the internal limitations of each server,
+rather than that of the TCP/IP stack. There may be certain behaviors
+associated with larger files that we havenot yet considered.
+
+We also plan to use the Linux profiling tool \verb+perf_events+ to
+identify hot-spots in \verb+lcrq-server+. Preliminary tests with this
+tool indicate a number of potential bottlenecks, including spurious
+futex waking when the server is under high load.
+
+For the remainder of our project, we consider the following to be our
+main deliverables:
+
+\begin{compactitem}
+\item A comprehensive test bench available as a git repository that
+  can be used to replicate our tests
+\item Results from a large number of iterations of our test bench,
+  with the goal of decididing on meaningful error bounds for
+  performance measurements
+\item A heavily-optimized version of \verb+lcrq-server+, utilizing the
+  optimization techniques suggested in Section IV
+\item Itemized conclusions explaining \emph{why} \verb+lcrq-server+
+  performs better or worse on specified tests.
+\end{compactitem}
 
 \end{multicols}
 
