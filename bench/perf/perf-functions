@@ -1,11 +1,13 @@
 #!/bin/bash
 
-function server_n_threads () {
-    export server=$1
+export server_dir="../../../lcrq-server/"
+export servers="http-server msq lcrq-server"
+
+function start_server () {
+    $server = $1
     killall http-server msq lcrq-server
     export NTHREADS=$2
-    /home/ben/git-repo/dont-wait-for-me/lcrq-server/http-server \
-	8888 ~/html &> /dev/null &
+    $server_dir/$server 8888 ~/html &> /dev/null &
     export server_pid=$!
 }
     
@@ -17,7 +19,8 @@ function report_n_threads () {
     perf report --no-children -i $server-$NTHREADS-workers-$test_name
 }
 
-function record_n_threads () {
+function start_report () {
+    server=$1
     perf record -g -e cpu-clock,task-clock -p $server_pid \
 	 -o $server-$NTHREADS-workers-$1 -- sleep 5
 }
