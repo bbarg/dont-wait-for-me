@@ -1,22 +1,23 @@
 #!/bin/bash
 
-function http_server_n_threads () {
-    killall http-server
-    export NTHREADS=$1
+function server_n_threads () {
+    export server=$1
+    killall http-server msq lcrq-server
+    export NTHREADS=$2
     /home/ben/git-repo/dont-wait-for-me/lcrq-server/http-server \
 	8888 ~/html &> /dev/null &
     export server_pid=$!
 }
     
 function report_n_threads () {
-    test_name=$1
+    test_name=$2
     if [[ -z $test_name ]]; then
 	test_name=$RANDOM
     fi
-    perf report --no-children -i http-server-$NTHREADS-workers-$test_name
+    perf report --no-children -i $server-$NTHREADS-workers-$test_name
 }
 
 function record_n_threads () {
     perf record -g -e cpu-clock,task-clock -p $server_pid \
-	 -o http-server-$NTHREADS-workers-$1 -- sleep 5
+	 -o $server-$NTHREADS-workers-$1 -- sleep 5
 }
