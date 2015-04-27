@@ -23,6 +23,7 @@ function start_record () {
     server=$1
     echo "perf record -g -e cpu-clock,task-clock -p $server_pid \
 	 -o $server-$NTHREADS.data -- sleep 5"
-    perf record -g -e cpu-clock,task-clock -p $server_pid \
-	 -o $server-$NTHREADS.data -- sleep 5
+    sudo perf record -g -e cpu-clock,task-clock -p $server_pid \
+	 -o $server-$NTHREADS.data -- sleep 5 &
+    export perf_pid=$!
 }
