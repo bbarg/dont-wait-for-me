@@ -1,15 +1,16 @@
 #!/bin/bash
 
 export server_dir="../../../lcrq-server/"
-export servers="http-server"
+export servers="http-server msq lcrq-server"
+export web_root="/home/ruchir/html"
 
 function start_server () {
     server=$1
     export NTHREADS=$2
     port=$3
     killall http-server msq lcrq-server &> /dev/null
-    echo "$server_dir/$server 8888 ~/html &> /dev/null &"
-    $server_dir/$server $port ~/html &> /dev/null &
+    echo "$server_dir/$server 8888 $web_root &> /dev/null &"
+    $server_dir/$server $port $web_root &> /dev/null &
     export server_pid=$!
     echo "$server running with PID=$server_pid"
 }
