@@ -20,10 +20,20 @@ function report_n_threads () {
 }
 
 function start_record () {
-    server=$1
-    echo "perf record -g -e cpu-clock,task-clock -p $server_pid \
+    local server=$1
+    local name_suffix=$2
+    
+    if [[ -z name_suffix ]]; then
+	echo "perf record -g -e cpu-clock,task-clock -p $server_pid \
 	 -o $server-$NTHREADS.data -- sleep 5"
-    sudo perf record -g -e cpu-clock,task-clock -p $server_pid \
-	 -o $server-$NTHREADS.data -- sleep 5 &
+	sudo perf record -g -e cpu-clock,task-clock -p $server_pid \
+	    -o $server-$NTHREADS.data -- sleep 5 &
+    else
+		echo "perf record -g -e cpu-clock,task-clock -p $server_pid \
+	 -o $server-$name_suffix.data -- sleep 5"
+	sudo perf record -g -e cpu-clock,task-clock -p $server_pid \
+	    -o $server-$name_suffix.data -- sleep 5 &
+    fi
+
     export perf_pid=$!
 }
