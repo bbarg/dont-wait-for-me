@@ -4,7 +4,7 @@ source ../perf-functions
 
 function start_latency_workload () {
     port=$1
-    timeout 30s httperf --hog --server localhost --port $port --uri /281b --num-conns 10000 \
+    timeout 30s httperf --hog --server localhost --port $port --uri /281b --num-conns 100000 \
 	     &> httperf-$server-$NTHREADS.log &
     export httperf_pid=$!
 }
