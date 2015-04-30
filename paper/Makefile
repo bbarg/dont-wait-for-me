@@ -5,6 +5,14 @@ LATEX_BIN=/usr/local/texlive/2013/bin/x86_64-darwin/
 LATEX=$(LATEX_BIN)/pdflatex
 BIBTEX=$(LATEX_BIN)/bibtex
 
+all: final-paper.pdf extended-abstract.pdf
+
+final-paper.pdf: final-paper.tex ref.bib
+	$(LATEX) final-paper.tex
+	$(BIBTEX) final-paper
+	$(LATEX) final-paper.tex
+	$(LATEX) final-paper.tex
+
 extended-abstract.pdf: extended-abstract.tex ref.bib
 	$(LATEX) extended-abstract.tex
 	$(BIBTEX) extended-abstract

@@ -1,0 +1,391 @@
+\documentclass[twoside,10pt]{article}
+
+% ------
+% Fonts and typesetting settings
+\usepackage[sc]{mathpazo}
+\usepackage[T1]{fontenc}
+\linespread{1.05} % Palatino needs more space between lines
+\usepackage{microtype}
+
+
+% ------
+% Page layout
+\usepackage[hmarginratio=1:1,top=32mm,columnsep=20pt,margin={2.54cm,2.54cm}]{geometry}
+\usepackage[font=it]{caption}
+\usepackage{paralist}
+\usepackage{multicol}
+
+% ------
+% Lettrines
+\usepackage{lettrine}
+
+
+% ------
+% Abstract
+\usepackage{abstract}
+	\renewcommand{\abstractnamefont}{\normalfont\bfseries}
+	\renewcommand{\abstracttextfont}{\normalfont\small\itshape}
+
+% ------
+% Titling (section/subsection)
+\usepackage{titlesec}
+\renewcommand\thesection{\Roman{section}}
+\titleformat{\section}[block]{\large\scshape\centering}{\thesection.}{1em}{}
+
+
+% ------
+% Header/footer
+\usepackage{fancyhdr}
+	\pagestyle{fancy}
+	\fancyhead{}
+	\fancyfoot{}
+	\fancyhead[C]{Advanced Operating Systems $\bullet$ April 2015}
+	\fancyfoot[RO,LE]{\thepage}
+
+
+% ------
+% Clickable URLs (optional)
+\usepackage{hyperref}
+
+% ------
+% Maketitle metadata
+\title{\vspace{-15mm}%
+  \fontsize{24pt}{10pt}\selectfont \textbf{Don't Wait For Me:}\\
+  \textbf{Evaluating the Applicability of Lock-free Queues in High-Load Web
+    Servers} } 
+\author{%
+  \large
+  \textsc{Benjamin Barg $\bullet$ Ruchir Khaitan}\\[2mm]
+  \normalsize \href{mailto:bbb2123@columbia.edu}{bbb223@columbia.edu}
+    $\bullet$ \href{mailto:rk2660@columbia.edu}{rk2660@columbia.edu}\\
+  \normalsize	Columbia University
+  \vspace{-5mm} } 
+\date{}
+
+% ------
+% Including images
+\usepackage{graphicx}
+
+% ------
+% Using figures inside multicol
+\newenvironment{Figure}
+  {\par\medskip\noindent\minipage{\linewidth}}
+  {\endminipage\par\medskip}
+
+%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+
+\maketitle
+\thispagestyle{fancy}
+
+\begin{abstract}
+  \noindent Using lock-free queue implementations taken from various
+  authors, we present a measurement and comparison study of the
+  performance of multithreaded web servers that use these queues to
+  perform inter-thread communication for a producer-consumer
+  workflow. We then compared our web servers to existing open source
+  options like \verb+nginx+ and \verb+lighttpd+, to compare the
+  relative performance of a server architecture driven by queue
+  message passing versus event polling or thread spawning, to see how
+  effective lock free queues are for this class of
+  program. Preliminary results on an 8 core system show that servers
+  built with various lock free queues are significantly more
+  performant than ones built with globally locked queues, even
+  approaching the performance of \verb+nginx+ when in-application file
+  caching is implemented. However, further experiments and
+  optimiztions are needed before we can draw further conclusions.
+\end{abstract}
+
+\begin{multicols}{2}
+  \lettrine[nindent=0em,lines=3]{I}n the past 20 years, there has been
+  an explosion of research into lock-free synchronization. Lock-free
+  objects possess numerous provable guarantees lacked by locked
+  objects, including deadlock immunity and async-signal safety. In
+  addition, operations on lock-free data structures have the potential
+  to be significantly faster than those on comparable locked objects,
+  particuarly under heavy contention. In a world where heavily
+  multicore processors are widely available, user-level applications
+  are well-behooved to use data structures optimized for the
+  distributed nature of multiple cores.
+  
+High performance web servers provide an intriguing application for
+lock-free algorithms, given that they deal with extremely high
+concurrency and in certain situations would benefit from progress
+guarantees (a good example would be an ad exchange server where each
+request represents explicit monetary value). We observe that most
+modern servers targeted towards high-concurrency (in particular
+\verb+nginx+) have shied away from user-level job distribution and
+instead rely on kernel mechanisms for reporting on file descriptors
+(the so-called "event-based" server architecture). Our goal is to
+explore the limitations of a thread-pooled server architecture that
+uses a queue for job distribution through comparison with both a
+locked version of the same architecture and with popular modern
+high-performance web servers.
+
+\section{Related Work}
+
+The related work for this paper can be split into two sections: that
+which is related to lock free queue implementations and that which is
+related to server performance testing.
+
+\subsection{Lock-free queues}
+
+Lock-free programming has been an active area of research for at least
+the past thirty years. Michael and Scott present a linked list based
+nonblocking queue (referred to as the MS-queue) \cite{MS96}. Their
+implementation relies on the compare-and-swap primitive (CAS) that
+allows for atomic manipulation of linked list pointers. Kogan and
+Petrank give a wait-free variant of the MS-queue \cite{KP11}. However
+both these, and other versions of the MS-queue suffer from scalability
+problems after a small amount of concurrency because threads contend
+for memory locations to perform CAS, and often get stuck in retry
+loops that are prohibitively expensive.
+
+Other researchers (Hendler et al, Fatourou and Kallimanis) have shown
+that combining-based queues perform better than CAS queues, where a
+combining queue essentially serializes access to the queue by only
+allowing one thread to perform operations on the queue \cite{He10,
+  FK12}. The other threads publish their intended operation on a
+shared array. The idea is that past a small amount of threads, CAS
+based queue performance degrades so much as to be entirely useless,
+and instead sequential access is preferable. In practice, combining
+queues have an even greater advantage as the combining thread is
+pinned to a single CPU, and stays cache-hot throughout its execution.
+
+Finally, Afek and Morrison present a linearizable concurrent
+non-blocking queue based on a linked list of concurrent ring buffers
+(LCRQ) \cite{AM13}. This queue avoids the CAS contention problems that
+plague MS-queue variants by using theoretically weaker primitives like
+fetch-and-add (FA). This queue ends up being significantly faster than
+all previous lock-free queues.
+
+\subsection{Server performance testing}
+
+Veal and Foong present a detailed analysis of the performance
+scalability of multicore web servers, from which they concludue that
+the primary bottlenecks inhibiting web server scalability were system
+bus hardware design flaws \cite{veal2007performance}. Hashemian
+describes strategies for benchmarking servers on multicore systems and
+automation strategies \cite{hashemian2013improving}.
+
+\section{Implementation}
+As of the current state of our research, we are testing three naive
+implementations of thread-pooled, queue-based web servers, which we
+refer to from here on as \verb+http-server+, \verb+msq-server+, and
+\verb+lcrq-server+. These implementations serve static content on a
+single port, with worker threads sleeping if the work queue is
+empty. A single acceptor thread loops on accept and adds connections
+to the queue (in the form of client socket file descriptors) as they
+arrive. All three servers are written solely in C and use the POSIX
+sockets library directly to create and serve client sockets. By
+default, the servers support logging of incoming connections to
+\verb+stdout+, although in Section 4 we observe a marked performance
+increase when logging is disabled.
+
+It should be clarified that none of \verb+http-server+,
+\verb+msq-server+, or \verb+lcrq-server+ are intended as full-featured
+and robust servers that would at this point in time be used to replace
+existing servers (although the their feature-set isn't extremely far
+away from that of \verb+lighttpd+). Our goal is to compare event-based
+and queue-based server architectures under extremely high load, so we
+have chosen minimal queue-based implementation to isolate the
+performance of the queue within the server.
+
+\subsection{\texttt{http-server}}
+
+This version of the server is the basis for the others, and uses a
+singly-locked queue (one lock is used for both enqueueing and
+dequeueing). The queue also uses a condition variable that worker
+threads may sleep on when no jobs are available.
+
+\subsection{\texttt{msq-server}}
+
+This version is a modified copy of \verb+http-server+ with the single
+locking queue replaced by an implementation of Michael and Scott's
+seminal MPMC lock-free queue \cite{synch-1.0.1}. POSIX
+condition variables can no longer be used to implement sleeping on an
+empty queue; instead we use a light wrapper over the \verb+futex+ system
+call. This particular implementation of the Michael and Scott queue
+returns -1 whenever a \verb+dequeue+ fails on an empty queue; we use that
+return value as our sleeping condition.
+
+\subsection{\texttt{lcrq-server}}
+
+Also a modified copy of \verb+http-sever+, \verb+lcrq-server+ replaces
+the locking queue with an implementation of Morrisson and Afek's
+so-called LCRQ \cite{lcrq-source}. The LCRQ is a linked list of ring buffers that uses
+fetch-and-add as its primary atomic primitive (when performing
+operations on an inidividual ring buffer), falling back to
+compare-and-swap only when the new ring buffers need to be added to
+the linked list. Although LCRQ is an MPMC queue, we only have a single
+accepting thread and thus a single enqueuer. Like for the Michael
+Scott queue, \verb+dequeue+ returns -1 on an empty queue, so we use
+the same \verb+futex+ wrapper to implement sleeping.
+
+\section{Testing Strategy}
+
+Our testing strategy centers around two main goals:
+
+\begin{compactitem}
+\item What are the traditional bottlenecks of a queue-based web server
+  architecture and how could a lock-free queue possibly circumvent
+  those?
+\item How closely can an optimized version of a lock-free-queue based
+  webserver approach the performance (under heavy load) of existing
+  web servers \verb+nginx+, \verb+lighttpd+, and \verb+apache+?
+\end{compactitem}
+
+For testing, we make heavy use of HP's \verb+httperf+ utility, which
+allows sending adjusting the per-second requests rate and setting
+timeouts, and which has the crucial feature of continuing to send
+requests without recieving replies from the server
+\cite{mosberger1998httperf}. This tool, combined with a fast enough
+connection to the server, allows us to max out our servers' capacity
+for concurrency.
+
+Our tests were run between two identical rack servers housed in the
+same building. Each server has two quad-core Intel Xeon L5420 2.50 GHz
+processors, each of which have with a 12 MB L2 cache. Both servers
+have 16 GB of RAM, and both run Ubuntu 14.04.2 LTS (Linux kernel version
+3.13.0-46-generic).
+
+\verb+nginx+, \verb+lighttpd+, and our servers all send
+differently-size response headers, and these headers are on the same
+order of magnitude as or larger than the 10 byte to 1 kilobyte files
+we test with. To normalize the number of bytes sent in each response,
+we decided on 300 bytes as our default total response size and
+requested a file of \verb+300 - server_header_size+ bytes for each
+server.
+
+\subsection{Server latency}
+
+\begin{Figure}
+\includegraphics[width=\linewidth]{img/max-latency.png}
+\captionof{figure}{}
+\end{Figure}
+\begin{Figure}
+\includegraphics[width=\linewidth]{img/requests-vs-connection-time.png}
+\captionof{figure}{}
+\end{Figure}
+
+
+This is a really simple experiment designed to test the server request
+latency. We use \verb+httperf+ to send increasing numbers of requests
+as fast as possible, and measured the total time required to process
+those requests. Larger numbers of files generate longer running test
+times, but this gives a better measurement of average processing rate
+(requests/second) that takes into account nondeterministic factors
+like TCP/IP warmup, network noise, filesystem caching and others.
+
+\subsection{Server throughput}
+
+Here, requests are sent from a client program at incrementally
+increasing requests, and all the requests have a specified
+timeout. The maximum rate that the server can respond completely to
+with no dropped or refused requests is the server throughput. This
+also is a good test of the maximum concurrency the server can support.
+
+\section{Future optimizations}
+
+To this point, our lock-free server implementations have been done
+rather naively. We propose several possible performance optimizations
+to push the performance of \verb+msq-server+ and \verb+lcrq-server+
+closer to that of \verb+nginx+ and \verb+lighttpd+. In certain cases,
+such as application-level content caching, these are optimizations
+that already exist in the aforementioned applications.
+
+\subsection{Disabling logging}
+By default, \verb+lighthttp+ does no logging, while \verb+nginx+ logs
+to disk, where it can take advantage of buffered I/O. Conversely, the
+default behavior for \verb+http-server+ and its variants is to log
+requests to \verb+stdout+, which is line-buffered and therefore incurs
+a heavy cost at high request rates. In preliminary testing, disabling
+\verb+stdout+ logging for \verb+lcrq-server+ netted a roughly 10\%
+performance increase. We plan to test the \verb+lcrq-server+'s
+performance when logging to a file as well.
+
+\subsection{Application level content-cache}
+While the OS maintains a file buffer cache, using it requires the
+syscall overhead from \verb+read+. To reduce this overhead, several
+existing servers (including \verb+nginx+) maintain a user-level file
+cache so that more content can be served via user-space memory
+access. We have not yet implemented a full cache solution, but we did
+simulate the effects of such a cache by modifying \verb+lcrq-server+
+to send static global buffer instead of pulling the requested file
+system. This preliminary test also demonstrated a 10\% performance
+improvement. We thus expect a fully-featured user-space content cache
+to contribute a meaningful speedup.
+
+\subsection{Robust lock-free memory management}
+
+Currently, we do not have a robust lock-free memory allocation or
+memory reclamation strategy in place for \verb+msq-server+ and
+\verb+lcrq-server+. When new nodes are needed, the acceptor thread
+simply calls \verb+malloc+ within each queue implementation to create
+a new node. While this reliance on a locking \verb+malloc+ admittedly
+affects the supposed progress guarantee of the lock-free algorithms we
+use, we hold that it should not signicantly effect performance, as
+only the accepting thread is contending for the \verb+malloc+
+lock. Usage or implementation of a lock-free (or otherwise robust)
+memory allocator would likely \emph{improve} server performance, given the
+options for per-thread pooling and CPU memory locality
+\cite{hart2007performance}.
+
+As for memory reclamation, the standard and popular lock-free solution
+is Maged M. Michael's hazard pointers \cite{michael2004hazard}. Hazard
+pointers allow threads operating on a shared lock-free object to
+temporarily ensure that hazardous references (for example a pointer to
+the next item in a queue) will remain valid as long as the thread
+holds one of a finite number of hazard pointers to the object. There
+is a small amount of overhead associated with hazard pointers, as the
+implementation requires both declaring the lifetime of hazardous
+reference within operations on the object and a periodic scanning of
+the global list of hazard pointers to lazily free nodes. We
+acknowledge that performance for \verb+lcrq-server+ and
+\verb+msq-server+ would likely be slower with a hazard pointer
+implementation, but we view generating research claims via server
+profiling as a higher priority in our current research than the
+production of a hazard pointers implementation.
+
+\section{Conclusion}
+
+Thus far, it has been challenging to max out load on the servers we
+are testing. Some of these bottlenecks come from system imposed limits
+on open file descriptors that we have just begun to modify
+(\verb+ulimit -n+), while others come from limitations of
+\verb+httperf+ (we may need to recompile \verb+httperf+ to use more
+than 1024 file descriptors).
+
+We have also been testing solely small file sizes with the motivation
+that such tests better expose the internal limitations of each server,
+rather than that of the TCP/IP stack. There may be certain behaviors
+associated with larger files that we havenot yet considered.
+
+We also plan to use the Linux profiling tool \verb+perf_events+ to
+identify hot-spots in \verb+lcrq-server+. Preliminary tests with this
+tool indicate a number of potential bottlenecks, including spurious
+futex waking when the server is under high load.
+
+For the remainder of our project, we consider the following to be our
+main deliverables:
+
+\begin{compactitem}
+\item A comprehensive test bench available as a git repository that
+  can be used to replicate our tests
+\item Results from a large number of iterations of our test bench,
+  with the goal of decididing on meaningful error bounds for
+  performance measurements
+\item A heavily-optimized version of \verb+lcrq-server+, utilizing the
+  optimization techniques suggested in Section IV
+\item Itemized conclusions explaining \emph{why} \verb+lcrq-server+
+  performs better or worse on specified tests.
+\end{compactitem}
+
+\end{multicols}
+
+{\small
+  \bibliographystyle{abbrv}
+  \bibliography{ref}
+}
+
+\end{document}
