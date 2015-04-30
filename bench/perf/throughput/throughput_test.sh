@@ -20,7 +20,7 @@ function run_one_test() {
       . ../perf-functions; \
       start_server $server $nthreads $port; \
       sleep 2; \
-      start_record $server $nthreads-$rate;'
+      perf record -e $events -p $pid -- sleep 5 &'
 
     ssh $user@$test_server $command
 
