@@ -2,7 +2,7 @@
 
 user=ben
 test_server='128.59.19.36'
-test_dir='/home/'$user'/dont-wait-for-me/bench/perf/throughput/'
+test_dir='/home/${user}/dont-wait-for-me/bench/perf/throughput/'
 dump_file='httperf.dump'
 
 function run_one_test() {
@@ -22,7 +22,7 @@ function run_one_test() {
       sleep 2; \
       perf record -e $events -p $pid -- sleep 5 &'
 
-    ssh $user@$test_server $command
+    ssh $user@$test_server "$command"
 
     timeout 30s -- \
 	    httperf --hog --server $server --port $port --uri $uri \
