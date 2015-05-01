@@ -167,7 +167,7 @@ void queue_destroy(struct queue* q) {
 void queue_put(struct queue* q, int sock) {
     enqueue(sock, 0); 
     if (__sync_fetch_and_add(&futex_addr, 1) == 0 ) {
-        broadcast(&futex_addr); 
+        futex_signal(&futex_addr); 
     }
 //  __sync_fetch_and_add(&queue_len, 1); 
 
