@@ -15,7 +15,6 @@ OBJ=	\
 	lcrq-server \
 	msq	    \
 	http-server-futex \
-	http-server-cache \
 	lcrq-server-cache
 
 .PHONY: clean all debug

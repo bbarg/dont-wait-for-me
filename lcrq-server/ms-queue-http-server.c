@@ -144,7 +144,7 @@ inline Object dequeue(int pid) {
 
 static int flag_term = 0; 
 int queue_len = 0;
-int futex_addr = 0; 
+static int futex_addr = 0; 
 
 const char *webRoot = NULL;
 
@@ -166,9 +166,9 @@ void queue_destroy(struct queue* q) {
 
 void queue_put(struct queue* q, int sock) {
     enqueue(sock, 0); 
-//    if (queue_len == 0 ) {
+    if (__sync_fetch_and_add(&futex_addr, 1) == 0 ) {
         broadcast(&futex_addr); 
-//    }
+    }
 //  __sync_fetch_and_add(&queue_len, 1); 
 
 
@@ -176,12 +176,15 @@ void queue_put(struct queue* q, int sock) {
 
 int queue_get(struct queue *q ) {
     //int x = 1;
-    int ret; 
-    while ((ret = dequeue(0)) == -1) {
-        wait(&futex_addr);
+    int ret;
+
+    do {
+
+        cond_wait(&futex_addr, 0);
     }
+    while ((ret = dequeue(0)) == -1); 
     //ret = dequeue(0);
-    //__sync_fetch_and_sub(&queue_len, 1);
+    __sync_fetch_and_sub(&futex_addr, 1);
     return ret; 
 }
 

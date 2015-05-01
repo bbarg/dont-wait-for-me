@@ -391,6 +391,8 @@ inline Object dequeue(int pid) {
 #include "wait.h"
 static int waiter;
 
+#define QUEUE_LIMIT 8
+
 void queue_init(struct queue *q) {
     SHARED_OBJECT_INIT();
     waiter = 0;
@@ -409,7 +411,9 @@ void queue_put(struct queue *q, int sock) {
 
     enqueue((Object) sock, 0); 	/* ok since sock will fit in
 				   int32_t */
-    futex_signal(&waiter);
+    if ( __sync_fetch_and_add(&waiter, 1) == 0 ) { //empty -> nonempty 
+        broadcast(&waiter); 
+    }
 }
 
 /* This will be more complicated. We have to maintain blocking
@@ -419,9 +423,12 @@ void queue_put(struct queue *q, int sock) {
 int queue_get(struct queue *q) {
     int sock;
 
-    while ((sock = (int) dequeue(0)) == -1) {
-	wait(&waiter);
+    do {
+        cond_wait(&waiter, 0);
     }
+    while ((sock = (int) dequeue(0)) == -1); 
+
+    __sync_fetch_and_sub(&waiter, 1);
     
 #ifdef DEBUG
     printf("[%lu] dequeue got socket %d\n", pthread_self());

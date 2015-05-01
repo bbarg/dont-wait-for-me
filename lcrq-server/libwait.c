@@ -16,6 +16,11 @@ int wait(int* addr) {
     return syscall(SYS_futex, addr, FUTEX_WAIT_PRIVATE, old_val, NULL, NULL, 0); 
 }
 
+int cond_wait(int* addr, int old_val) {
+    return syscall(SYS_futex, addr, FUTEX_WAIT_PRIVATE, old_val, NULL, NULL, 0); 
+}
+
+
 
 int futex_wake(int* addr, int n) {
     if (n == 1) {
