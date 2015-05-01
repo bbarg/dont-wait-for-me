@@ -412,7 +412,7 @@ void queue_put(struct queue *q, int sock) {
     enqueue((Object) sock, 0); 	/* ok since sock will fit in
 				   int32_t */
     if ( __sync_fetch_and_add(&waiter, 1) == 0 ) { //empty -> nonempty 
-        broadcast(&waiter); 
+        futex_signal(&waiter); 
     }
 }
 
@@ -422,11 +422,16 @@ void queue_put(struct queue *q, int sock) {
 
 int queue_get(struct queue *q) {
     int sock;
-
+waitLoop:
     do {
         cond_wait(&waiter, 0);
     }
-    while ((sock = (int) dequeue(0)) == -1); 
+    while (waiter == 0); 
+    
+    if ((sock = (int) dequeue(0)) == -1) {
+        goto waitLoop; 
+    }
+
 
     __sync_fetch_and_sub(&waiter, 1);
     

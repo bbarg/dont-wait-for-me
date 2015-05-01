@@ -178,12 +178,20 @@ int queue_get(struct queue *q ) {
     //int x = 1;
     int ret;
 
+waitLoop:
+
     do {
 
         cond_wait(&futex_addr, 0);
     }
-    while ((ret = dequeue(0)) == -1); 
+    while (futex_addr == 0); 
     //ret = dequeue(0);
+    
+    if ((ret = dequeue(0)) == -1 ) { //dequeue failed
+        goto waitLoop; 
+    }
+
+    //successful deque - now decrement and get out 
     __sync_fetch_and_sub(&futex_addr, 1);
     return ret; 
 }
