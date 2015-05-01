@@ -17,7 +17,7 @@ OBJ=	\
 	http-server-futex \
 	lcrq-server-cache
 
-.PHONY: clean all debug
+.PHONY: clean all debug install
 all: $(OBJ)
 
 http-server: libwait.o
@@ -30,6 +30,9 @@ lcrq-server-cache: lcrq.o libwait.o
 
 msq: ms-queue-http-server.o libwait.o
 	gcc $(LDFLAGS) ms-queue-http-server.o libwait.o $(LDLIBS) -o msq
+
+install: all
+	cp $(OBJ) /usr/local/bin
 
 debug:
 	make OPT="-DDEBUG"
