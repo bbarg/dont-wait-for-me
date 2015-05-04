@@ -3,7 +3,7 @@
 set -e
 
 dumps="/home/ruchir/dont-wait-for-me/bench/max_request_latency/script_dump/"
-servers="http-server lcrq-server msq"
+servers="http-server-signal http-server-broadcast lcrq-server-signal lcrq-server-broadcast msq-server-signal msq-server-broadcast"
 
 for server in $servers
 do
