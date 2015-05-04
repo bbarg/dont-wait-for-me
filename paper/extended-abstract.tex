@@ -179,7 +179,7 @@ performance than thread-per-request servers. In a comparative study
 between finely tuned event-based and thread-per-request servers
 (optimized by the researchers themselves) Pariag et al. demonstrated
 an 18\% throughput advantage for the event-based server
-\cite{paraig2007comparing}.
+\cite{pariag2007comparing}.
 
 \subsection{Server performance testing}
 
@@ -216,7 +216,7 @@ continues to be an issue as recently as 2012
 \section{Implementation}
 As of the current state of our research, we are testing three naive
 implementations of thread-pooled, queue-based web servers, which we
-refer to from here on as \verb+http-server+, \verb+msq-server+, and
+refer to from here on as \verb+locked-server+, \verb+msq-server+, and
 \verb+lcrq-server+. These implementations serve static content on a
 single port, with worker threads sleeping if the work queue is
 empty. A single acceptor thread loops on accept and adds connections
@@ -227,7 +227,7 @@ default, the servers support logging of incoming connections to
 \verb+stdout+, although in Section 4 we observe a marked performance
 increase when logging is disabled.
 
-It should be clarified that none of \verb+http-server+,
+It should be clarified that none of \verb+locked-server+,
 \verb+msq-server+, or \verb+lcrq-server+ are intended as full-featured
 and robust servers that would at this point in time be used to replace
 existing servers (although the their feature-set isn't extremely far
@@ -236,7 +236,7 @@ and queue-based server architectures under extremely high load, so we
 have chosen minimal queue-based implementation to isolate the
 performance of the queue within the server.
 
-\subsection{\texttt{http-server}}
+\subsection{\texttt{locked-server}}
 
 This version of the server is the basis for the others, and uses a
 singly-locked queue (one lock is used for both enqueueing and
@@ -245,7 +245,7 @@ threads may sleep on when no jobs are available.
 
 \subsection{\texttt{msq-server}}
 
-This version is a modified copy of \verb+http-server+ with the single
+This version is a modified copy of \verb+locked-server+ with the single
 locking queue replaced by an implementation of Michael and Scott's
 seminal MPMC lock-free queue \cite{synch-1.0.1}. POSIX
 condition variables can no longer be used to implement sleeping on an
@@ -309,14 +309,10 @@ server.
 \subsection{Server latency}
 
 \begin{Figure}
-\includegraphics[width=\linewidth]{img/max-latency.png}
-\captionof{figure}{}
+\includegraphics[width=\linewidth]{img/latency_v_nthreads.png}
+\captionof{figure}{Latency test results using signal and broadcast
+  semantics, versus number of worker threads}
 \end{Figure}
-\begin{Figure}
-\includegraphics[width=\linewidth]{img/requests-vs-connection-time.png}
-\captionof{figure}{}
-\end{Figure}
-
 
 This is a really simple experiment designed to test the server request
 latency. We use \verb+httperf+ to send increasing numbers of requests
@@ -326,16 +322,20 @@ times, but this gives a better measurement of average processing rate
 (requests/second) that takes into account nondeterministic factors
 like TCP/IP warmup, network noise, filesystem caching and other factors.
 
-The latency performance of each of these servers varies drastically based on
-the thread wakeup policy used. Specifically, do they \verb+futex-signal+ and 
-only wake up only one available thread, or do they \verb+futex-broadcast+ and attempt to wakeup as many threads as possible. Since the latency test workload
-is inherently serial, ideal performance should be constant regardless of the 
-number of threads or cores available, since only one network request ever needs
-to be processed at a time. Employing \verb+futex-signal+ allows all three 
-servers to approach the ideal performance. Unsurprisingly, using \verb+futex-broadcast+ signficantly degrades server performance, particularly that of 
-\verb+http-server+. This is exactly as expected as increased lock contention 
-is more expensive than increased CAS retry contention in the MS-queue or increased FAA contention in the LCRQ. 
-
+The latency performance of each of these servers varies drastically
+based on the thread wakeup policy used. Specifically, do they
+\verb+futex-signal+ and only wake up only one available thread, or do
+they \verb+futex-broadcast+ and attempt to wakeup as many threads as
+possible. Since the latency test workload is inherently serial, ideal
+performance should be constant regardless of the number of threads or
+cores available, since only one network request ever needs to be
+processed at a time. Employing \verb+futex-signal+ allows all three
+servers to approach the ideal performance. Unsurprisingly, using
+\verb+futex-broadcast+ signficantly degrades server performance,
+particularly that of \verb+locked-server+. This is exactly as expected
+as increased lock contention is more expensive than increased CAS
+retry contention in the MS-queue or increased FAA contention in the
+LCRQ.
 
 \subsection{Server throughput}
 
@@ -368,12 +368,12 @@ that already exist in the aforementioned applications.
 \subsection{Disabling logging}
 By default, \verb+lighthttp+ does no logging, while \verb+nginx+ logs
 to disk, where it can take advantage of buffered I/O. Conversely, the
-default behavior for \verb+http-server+ and its variants is to log
-requests to \verb+stdout+, which is line-buffered and therefore incurs
-a heavy cost at high request rates. In preliminary testing, disabling
-\verb+stdout+ logging for \verb+lcrq-server+ netted a roughly 10\%
-performance increase. We plan to test the \verb+lcrq-server+'s
-performance when logging to a file as well.
+default behavior for our servers is to log requests to \verb+stdout+,
+which is line-buffered and therefore incurs a heavy cost at high
+request rates. In preliminary testing, disabling \verb+stdout+ logging
+for \verb+lcrq-server+ netted a roughly 10\% performance increase. We
+plan to test the \verb+lcrq-server+'s performance when logging to a
+file as well.
 
 \subsection{Application level content-cache}
 While the OS maintains a file buffer cache, using it requires the
@@ -417,6 +417,41 @@ acknowledge that performance for \verb+lcrq-server+ and
 implementation, but we view generating research claims via server
 profiling as a higher priority in our current research than the
 production of a hazard pointers implementation.
+
+\section{Future Work}
+
+\subsection{Creating a fully lock-free application}
+
+Both \verb+msq-server+ and \verb+lcrq-server+ incorporate a lock-free
+queue, but each relies on mutiple locked subsystems, both in the C
+standard library and in the Linux kernel (e.g. the sockets library,
+\verb+malloc+, the \verb+futex+ system call, and the in-kernel TCP/IP
+stack). While some of these systems have user-space solutions\---there
+exist, for example, lock-free memory allocators\---others require the
+existence of lock-free kernel implementations (in particular, the
+\verb+futex+ system call). Further work on lock-free versions of these
+systems may follow two possible paths:
+\begin{enumerate}
+\item implementing lock-free alternatives on a case-by-case basis,
+  with the goal of reducing web server bottlenecks 
+\item creating a fully lock-free kernel, which aims to provide a
+  provably lock-free system
+\end{enumerate}
+
+The first of these approaches is probably more relevant to web-server
+optimization. A recent patch to the Linux kernel \verb+epoll+ file
+descriptor notification system noticed a significant in scalability
+when removing lock on the \verb+epoll+ algorithm's fast path
+\cite{lockfree-epoll}. Similar optimizations may be possible for the
+\verb+futex+ system call.
+
+Implementation have been attempted for lock-free kernels that support
+scalability for higher numbers of threads \cite{massalin1992lock}, but
+its authors admit that similar performance can be achieved with
+user-level thread libraries. A fully-lock free system would be most
+beneficial for applications that absolutely require high levels of
+thread contention; given the sucess of event-based architectures, web
+servers do not appear to fit this model.
 
 \section{Conclusion}
 
