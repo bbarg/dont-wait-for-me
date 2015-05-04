@@ -176,19 +176,42 @@ minimal web server using at event-based architecture
 
 Existing event-based servers have demonstrated reasonably better
 performance than thread-per-request servers. In a comparative study
-bewteen finely tuned event-based and thread-per-request servers
+between finely tuned event-based and thread-per-request servers
 (optimized by the researchers themselves) Pariag et al. demonstrated
 an 18\% throughput advantage for the event-based server
 \cite{paraig2007comparing}.
 
 \subsection{Server performance testing}
 
-Veal and Foong present a detailed analysis of the performance
-scalability of multicore web servers, from which they concludue that
-the primary bottlenecks inhibiting web server scalability were system
-bus hardware design flaws \cite{veal2007performance}. Hashemian
-describes strategies for benchmarking servers on multicore systems and
-automation strategies \cite{hashemian2013improving}.
+Conducting meaningful benchmarks of web server performance is
+challenging because web servers have many potential bottlenecks,
+including but not limited to the file system cache, network
+variability and efficiency of multithreading or multiprocessing.
+
+Multiple open-source applications exist for conducting benchmarks for
+the serving of static content. Apache bench (\verb+ab+) and
+\verb+lighttpd+'s \verb+weighttpd+ both allow the user to specify the
+number of connections, connection rate, number of client threads, and
+concurrency level
+\cite{fielding1997apache,kneschke2003lighttpd}. \verb+nginx+'s
+\verb+wrk+ provides a similar interface, but focuses on maintaining a
+certain number of concurrent connections. \cite{syosevnginx}. HP's
+\verb+httperf+ includes all of the former functionality and adds more
+extensive data reporting \cite{mosberger1998httperf}.
+
+Benchmarking performance while scaling number of cores presents a
+particular challenge, with researchers aggressively tuning benchmarks
+to isolate particular elements of the web server stack. Hashemian
+describes strategies for benchmarking servers on multicore systems,
+with workloads that attempt to isolate the performance of the TCP/IP
+stack and of application-level activity respectively
+\cite{hashemian2013improving}. Veal and Foong present a detailed
+analysis of the performance scalability of multicore web servers, from
+which they concludue that the primary bottlenecks inhibiting web
+server scalability were system bus hardware design flaws
+\cite{veal2007performance}. Geneves shows that bus saturation
+continues to be an issue as recently as 2012
+\cite{geneves2012analysis}.
 
 \section{Implementation}
 As of the current state of our research, we are testing three naive
