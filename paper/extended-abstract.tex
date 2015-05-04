@@ -206,8 +206,11 @@ seminal MPMC lock-free queue \cite{synch-1.0.1}. POSIX
 condition variables can no longer be used to implement sleeping on an
 empty queue; instead we use a light wrapper over the \verb+futex+ system
 call. This particular implementation of the Michael and Scott queue
-returns -1 whenever a \verb+dequeue+ fails on an empty queue; we use that
-return value as our sleeping condition.
+returns -1 whenever a \verb+dequeue+ fails on an empty queue. We also use an
+atomic integer to maintain a count of the elements in the queue, and atomically increment and decrement on put and get operations respectively. This gives us two performance benefits as we only have to call \verb+futex_wake+
+when the state of the queue changes from empty to nonempty (the size changes from zero to one). Also, worker threads don't always have to call \verb+dequeue+ 
+when they are woken up and can instead first check the size of the queue. This
+drastically improves the server's performance. 
 
 \subsection{\texttt{lcrq-server}}
 
@@ -220,7 +223,8 @@ compare-and-swap only when the new ring buffers need to be added to
 the linked list. Although LCRQ is an MPMC queue, we only have a single
 accepting thread and thus a single enqueuer. Like for the Michael
 Scott queue, \verb+dequeue+ returns -1 on an empty queue, so we use
-the same \verb+futex+ wrapper to implement sleeping.
+the same \verb+futex+ wrapper to implement sleeping, and the same strategy of 
+an atomic integer to encode the size of the queue.
 
 \section{Testing Strategy}
 
@@ -275,15 +279,37 @@ as fast as possible, and measured the total time required to process
 those requests. Larger numbers of files generate longer running test
 times, but this gives a better measurement of average processing rate
 (requests/second) that takes into account nondeterministic factors
-like TCP/IP warmup, network noise, filesystem caching and others.
+like TCP/IP warmup, network noise, filesystem caching and other factors.
+
+The latency performance of each of these servers varies drastically based on
+the thread wakeup policy used. Specifically, do they \verb+futex-signal+ and 
+only wake up only one available thread, or do they \verb+futex-broadcast+ and attempt to wakeup as many threads as possible. Since the latency test workload
+is inherently serial, ideal performance should be constant regardless of the 
+number of threads or cores available, since only one network request ever needs
+to be processed at a time. Employing \verb+futex-signal+ allows all three 
+servers to approach the ideal performance. Unsurprisingly, using \verb+futex-broadcast+ signficantly degrades server performance, particularly that of 
+\verb+http-server+. This is exactly as expected as increased lock contention 
+is more expensive than increased CAS retry contention in the MS-queue or increased FAA contention in the LCRQ. 
+
 
 \subsection{Server throughput}
 
 Here, requests are sent from a client program at incrementally
-increasing requests, and all the requests have a specified
+increasing rates, and all the requests have a specified
 timeout. The maximum rate that the server can respond completely to
 with no dropped or refused requests is the server throughput. This
 also is a good test of the maximum concurrency the server can support.
+
+We tested our servers at rates ranging from 200 to 6000 requests per second, 
+always with .1 second timeouts. We chose such a low timeout because anything 
+much larger than that is so large that all requests are always satisfied. With httperf, we could not reliably generate more than 6000 requests per second 
+because httperf relies on the \verb+select+ system call, which is limited to
+multiplexing only 1024 file descriptors at a time. This means that if we 
+attempt to generate higher loads, \verb+httperf+ runs out of file descriptors 
+and the entire test becomes invalid. 
+
+Unfortunately, the restrictive parameters of this test make it very noisy, 
+and its hard to draw any conclusions from these results. 
 
 \section{Future optimizations}
 
