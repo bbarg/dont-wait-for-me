@@ -124,9 +124,9 @@ high-performance web servers.
 
 \section{Related Work}
 
-The related work for this paper can be split into two sections: that
-which is related to lock free queue implementations and that which is
-related to server performance testing.
+The related work for this paper can be split into three sections:
+lock-free queue implementations, web server architectures, and web
+server benchmarking.
 
 \subsection{Lock-free queues}
 
@@ -158,6 +158,28 @@ non-blocking queue based on a linked list of concurrent ring buffers
 plague MS-queue variants by using theoretically weaker primitives like
 fetch-and-add (FA). This queue ends up being significantly faster than
 all previous lock-free queues.
+
+\subsection{Web server architectures}
+
+The two most popular (and open-source) servers in current usage are
+\verb+apache+ and \verb+nginx+, and each is the prime exponent of a
+particular philosophy for web server architecture. \verb+apache+
+follows the fork-on-request model, where each connection is assigned a
+separate process that fulfills the requests and them terminatoes
+\cite{fielding1997apache}. \verb+nginx+ uses an ``event-based''
+architecture, where a fixed number of worker threads poll a set of
+file descriptors \cite{syosevnginx}. This approach relies on the
+existence of fast kernel polling mechanisms: \verb+epoll+ for Linux
+and \verb+kqueue+ for BSD-based systems. \verb+lighttpd+ is another
+minimal web server using at event-based architecture
+\cite{kneschke2003lighttpd}.
+
+Existing event-based servers have demonstrated reasonably better
+performance than thread-per-request servers. In a comparative study
+bewteen finely tuned event-based and thread-per-request servers
+(optimized by the researchers themselves) Pariag et al. demonstrated
+an 18\% throughput advantage for the event-based server
+\cite{paraig2007comparing}.
 
 \subsection{Server performance testing}
 
