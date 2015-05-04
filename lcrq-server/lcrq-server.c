@@ -448,6 +448,9 @@ int main(int argc, char *argv[])
     // synchronized blocking queue.
     mainLoop(servSock);
 
+    /* forget that POISON shit so we can die on SIGINT */
+    exit(1);
+
     /* Poison the queue to stop worker threads */ 
     for (i = 0; i< nthreads; i++) {
         queue_put(&thread_queue, QUEUE_POISON);
