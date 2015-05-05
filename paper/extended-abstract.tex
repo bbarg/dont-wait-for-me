@@ -213,7 +213,7 @@ server scalability were system bus hardware design flaws
 continues to be an issue as recently as 2012
 \cite{geneves2012analysis}.
 
-\section{Implementation}
+\section{Implementation }
 As of the current state of our research, we are testing three naive
 implementations of thread-pooled, queue-based web servers, which we
 refer to from here on as \verb+locked-server+, \verb+msq-server+, and
@@ -236,12 +236,22 @@ and queue-based server architectures under extremely high load, so we
 have chosen minimal queue-based implementation to isolate the
 performance of the queue within the server.
 
+Also, we must stress that the servers as a whole are emphatically not 
+lock free. They use lock free queues for inter thread communication, but 
+everything else such writing logs to disk, accessing files, or allocating 
+memory is done with standard library functions and system calls. The progress
+guarantees of lock free algorithms are valuable, however, this paper aims to 
+evaluate performance within a web server program. 
+
+We implemented web servers using three different parallel queue algorithms, as detailed below. 
+
 \subsection{\texttt{locked-server}}
 
 This version of the server is the basis for the others, and uses a
 singly-locked queue (one lock is used for both enqueueing and
-dequeueing). The queue also uses a condition variable that worker
-threads may sleep on when no jobs are available.
+dequeueing). The queue also uses a POSIX condition variable to synchronize
+access so that worker threads don't have to poll the queue and instead may
+sleep on when no jobs are available.
 
 \subsection{\texttt{msq-server}}
 
@@ -251,11 +261,7 @@ seminal MPMC lock-free queue \cite{synch-1.0.1}. POSIX
 condition variables can no longer be used to implement sleeping on an
 empty queue; instead we use a light wrapper over the \verb+futex+ system
 call. This particular implementation of the Michael and Scott queue
-returns -1 whenever a \verb+dequeue+ fails on an empty queue. We also use an
-atomic integer to maintain a count of the elements in the queue, and atomically increment and decrement on put and get operations respectively. This gives us two performance benefits as we only have to call \verb+futex_wake+
-when the state of the queue changes from empty to nonempty (the size changes from zero to one). Also, worker threads don't always have to call \verb+dequeue+ 
-when they are woken up and can instead first check the size of the queue. This
-drastically improves the server's performance. 
+returns -1 whenever a \verb+dequeue+ fails on an empty queue. 
 
 \subsection{\texttt{lcrq-server}}
 
@@ -267,9 +273,32 @@ operations on an inidividual ring buffer), falling back to
 compare-and-swap only when the new ring buffers need to be added to
 the linked list. Although LCRQ is an MPMC queue, we only have a single
 accepting thread and thus a single enqueuer. Like for the Michael
-Scott queue, \verb+dequeue+ returns -1 on an empty queue, so we use
-the same \verb+futex+ wrapper to implement sleeping, and the same strategy of 
-an atomic integer to encode the size of the queue.
+Scott queue, \verb+dequeue+ returns -1 on an empty queue. 
+
+
+\subsection{\texttt{Queue optimizations}}
+
+We could not use POSIX condition variables with the lock free queues 
+because condition variables are bound to a specific lock, and that would be
+identical to the locked queue. However, our initial implementations relied 
+on worker threads polling the queues and spinning on failed dequeues. While
+this approach worked, it was very inefficient. First, we optimized this 
+naive approach by using a thin wrapper over the \verb+futex+ system call
+to allow the worker threads to sleep when the queue is empty. Then the
+acceptor thread wakes the workers whenever it enqueues a new connection. 
+We also implemented two different types of wakeups, \verb+signal+ to wake only 
+one sleeping thread, and \verb+broadcast+ to wake up all sleeping threads. 
+This intentionally matches POSIX condition variables, and we compare the 
+performance implications of the two. The second optimization used an atomic
+integer to store the number of items in the queue, and have enqueuers increment, and dequeuers decrement on success. This let us cut down both the
+number of calls to a \verb+futex+ wakeup function, as the accepting thread 
+only has to wakeup threads when the queue transitions from empty to 
+nonempty (the integer increases from zero to one). Furthermore, this 
+allows dequeuers to determine whether they can sleep by checking the length
+of the queue, instead of polling on the dequeue operation. Both of these 
+optimizations were used in the \verb+msq-server+ and the \verb+lcrq-server+. 
+
+
 
 \section{Testing strategy}
 
