@@ -278,27 +278,28 @@ Scott queue, \verb+dequeue+ returns -1 on an empty queue.
 
 \subsection{\texttt{Queue optimizations}}
 
-We could not use POSIX condition variables with the lock free queues 
-because condition variables are bound to a specific lock, and that would be
-identical to the locked queue. However, our initial implementations relied 
-on worker threads polling the queues and spinning on failed dequeues. While
-this approach worked, it was very inefficient. First, we optimized this 
-naive approach by using a thin wrapper over the \verb+futex+ system call
-to allow the worker threads to sleep when the queue is empty. Then the
-acceptor thread wakes the workers whenever it enqueues a new connection. 
-We also implemented two different types of wakeups, \verb+signal+ to wake only 
-one sleeping thread, and \verb+broadcast+ to wake up all sleeping threads. 
-This intentionally matches POSIX condition variables, and we compare the 
-performance implications of the two. The second optimization used an atomic
-integer to store the number of items in the queue, and have enqueuers increment, and dequeuers decrement on success. This let us cut down both the
-number of calls to a \verb+futex+ wakeup function, as the accepting thread 
-only has to wakeup threads when the queue transitions from empty to 
-nonempty (the integer increases from zero to one). Furthermore, this 
-allows dequeuers to determine whether they can sleep by checking the length
-of the queue, instead of polling on the dequeue operation. Both of these 
-optimizations were used in the \verb+msq-server+ and the \verb+lcrq-server+. 
-
-
+We could not use POSIX condition variables with the lock free queues
+because condition variables are bound to a specific lock, and that
+would be identical to the locked queue. However, our initial
+implementations relied on worker threads polling the queues and
+spinning on failed dequeues. While this approach worked, it was very
+inefficient. First, we optimized this naive approach by using a thin
+wrapper over the \verb+futex+ system call to allow the worker threads
+to sleep when the queue is empty. Then the acceptor thread wakes the
+workers whenever it enqueues a new connection.  We also implemented
+two different types of wakeups, \verb+signal+ to wake only one
+sleeping thread, and \verb+broadcast+ to wake up all sleeping threads.
+This intentionally matches POSIX condition variables, and we compare
+the performance implications of the two. The second optimization used
+an atomic integer to store the number of items in the queue, and have
+enqueuers increment, and dequeuers decrement on success. This let us
+cut down both the number of calls to a \verb+futex+ wakeup function,
+as the accepting thread only has to wakeup threads when the queue
+transitions from empty to nonempty (the integer increases from zero to
+one). Furthermore, this allows dequeuers to determine whether they can
+sleep by checking the length of the queue, instead of polling on the
+dequeue operation. Both of these optimizations were used in the
+\verb+msq-server+ and the \verb+lcrq-server+.
 
 \section{Testing strategy}
 
@@ -324,8 +325,9 @@ for concurrency.
 Our tests were run between two identical rack servers housed in the
 same building. Each server has two quad-core Intel Xeon L5420 2.50 GHz
 processors, each of which have with a 12 MB L2 cache. Both servers
-have 16 GB of RAM, and both run Ubuntu 14.04.2 LTS (Linux kernel version
-3.13.0-46-generic).
+have 16 GB of RAM, both run Ubuntu 14.04.2 LTS (Linux kernel version
+3.13.0-46-generic), and both have a 1TB HP Proliant HardDrive for
+storage.
 
 \verb+nginx+, \verb+lighttpd+, and our servers all send
 differently-size response headers, and these headers are on the same
@@ -346,6 +348,12 @@ server.
   \includegraphics[width=\linewidth]{img/latencyncores.png}
   \captionof{figure}{Latency versus number of cores at with selected
     numbers of worker threads}
+\end{Figure}
+\begin{Figure}
+  \includegraphics[width=\linewidth]{img/commodityserverlatencies.png}
+  \captionof{figure}{When number of worker threads equals number of
+    hardware threads, our servers outperform \texttt{apache} and \texttt{lighttpd} on
+    the latency workload but are slower than \texttt{nginx}}
 \end{Figure}
 
 This is a really simple experiment designed to test the server request
