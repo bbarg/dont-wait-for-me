@@ -271,7 +271,7 @@ Scott queue, \verb+dequeue+ returns -1 on an empty queue, so we use
 the same \verb+futex+ wrapper to implement sleeping, and the same strategy of 
 an atomic integer to encode the size of the queue.
 
-\section{Testing Strategy}
+\section{Testing strategy}
 
 Our testing strategy centers around two main goals:
 
@@ -309,9 +309,14 @@ server.
 \subsection{Server latency}
 
 \begin{Figure}
-\includegraphics[width=\linewidth]{img/latency_v_nthreads.png}
+\includegraphics[width=\linewidth]{img/latencynthreads2.png}
 \captionof{figure}{Latency test results using signal and broadcast
   semantics, versus number of worker threads}
+\end{Figure}
+\begin{Figure}
+  \includegraphics[width=\linewidth]{img/latencyncores.png}
+  \captionof{figure}{Latency versus number of cores at with selected
+    numbers of worker threads}
 \end{Figure}
 
 This is a really simple experiment designed to test the server request
@@ -339,19 +344,27 @@ LCRQ.
 
 \subsection{Server throughput}
 
+\begin{Figure}
+\includegraphics[width=\linewidth]{img/latencyfilesize.png}
+\captionof{figure}{All of our servers experience a significant latency
+  spike for files around 100Kb, likely due to network saturation}
+\end{Figure}
+
 Here, requests are sent from a client program at incrementally
 increasing rates, and all the requests have a specified
 timeout. The maximum rate that the server can respond completely to
 with no dropped or refused requests is the server throughput. This
 also is a good test of the maximum concurrency the server can support.
 
-We tested our servers at rates ranging from 200 to 6000 requests per second, 
-always with .1 second timeouts. We chose such a low timeout because anything 
-much larger than that is so large that all requests are always satisfied. With httperf, we could not reliably generate more than 6000 requests per second 
-because httperf relies on the \verb+select+ system call, which is limited to
-multiplexing only 1024 file descriptors at a time. This means that if we 
-attempt to generate higher loads, \verb+httperf+ runs out of file descriptors 
-and the entire test becomes invalid. 
+We tested our servers at rates ranging from 200 to 6000 requests per
+second, always with .1 second timeouts. We chose such a low timeout
+because anything much larger than that is so large that all requests
+are always satisfied. With httperf, we could not reliably generate
+more than 6000 requests per second because httperf relies on the
+\verb+select+ system call, which is limited to multiplexing only 1024
+file descriptors at a time. This means that if we attempt to generate
+higher loads, \verb+httperf+ runs out of file descriptors and the
+entire test becomes invalid.
 
 Unfortunately, the restrictive parameters of this test make it very noisy, 
 and its hard to draw any conclusions from these results. 
@@ -452,6 +465,10 @@ user-level thread libraries. A fully-lock free system would be most
 beneficial for applications that absolutely require high levels of
 thread contention; given the sucess of event-based architectures, web
 servers do not appear to fit this model.
+
+\subsection{Lock-free application server}
+
+[...]
 
 \section{Conclusion}
 
