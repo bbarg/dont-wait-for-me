@@ -91,18 +91,18 @@ done
 
 #iter_ncores
 
-lighttpd -D -f ~/lighttpd.conf 
-iter_requests "lighttpd" "281b" 2222
-killall lighttpd 
+#lighttpd -D -f ~/lighttpd.conf 
+#iter_requests lighttpd 281b 2222
+#killall lighttpd 
 
 sudo nginx 
-iter_requests "nginx" "281b" 8888
-sudo killall lighttpd 
+iter_requests nginx 281b 4444
+sudo killall nginx 
 
 
-#apache
-#iter_requests "apache" "281b" 2222
-#killall lighttpd 
+sudo apache2ctl start 
+iter_requests apache 281b 3333
+sudo apache2ctl stop 
 
 
 
