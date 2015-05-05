@@ -497,7 +497,26 @@ servers do not appear to fit this model.
 
 \subsection{Lock-free application server}
 
-[...]
+When serving static files with our queued servers, the only
+significant user-space concurrency bottleneck is the distribution of
+open connections from the accepting thread to worker threads. However,
+modern web servers also serve dynamic content, in which there may be
+more instances of high-contention data structures.
+
+Database servers seem to be a particular fruitful ground for lock-free
+applications, since they must support high numbers of concurrent
+operations. Hekaton, a database engine included in the 2014 version of
+Microsoft's SQL server, uses a lock-free fast path for designated
+in-memory tables to support large numbers of concurrent operations
+\cite{diaconu2013hekaton}.
+
+Web servers using pipeline parallelism, in which a stages of a
+sequential workflow are parallelized and then synchronized at various
+steps, present another application for lock-free queues in web
+servers. Giacomoni et al. showed that a lock-free queue with heavy
+cache-locality optimization can provide significant performance
+benefits on a network frame processing workflow
+\cite{giacomoni2008fastforward}.
 
 \section{Conclusion}
 
