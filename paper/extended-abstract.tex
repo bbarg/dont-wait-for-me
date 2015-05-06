@@ -125,8 +125,18 @@ high-performance web servers.
 \section{Related Work}
 
 The related work for this paper can be split into three sections:
-lock-free queue implementations, web server architectures, and web
+queue implementations, web server architectures, and web
 server benchmarking.
+
+\subsection{Condition variables}
+
+The idea of singaling mechanism for locked data structures first
+proposed by Hoare in his seminal 1974 paper on monitors
+\cite{hoare1974monitors}. A standard for conditional variables in
+which the signaling threads holds the mutex while signaling was
+included as an extension to the POSIX standard in 1992 and was
+implemented by Mueller in 1993
+\cite{ieee1992pthreads,mueller1993library}.
 
 \subsection{Lock-free queues}
 
@@ -275,8 +285,7 @@ the linked list. Although LCRQ is an MPMC queue, we only have a single
 accepting thread and thus a single enqueuer. Like for the Michael
 Scott queue, \verb+dequeue+ returns -1 on an empty queue. 
 
-
-\subsection{\texttt{Queue optimizations}}
+\subsection{Queue optimizations}
 
 We could not use POSIX condition variables with the lock free queues
 because condition variables are bound to a specific lock, and that
@@ -290,8 +299,8 @@ workers whenever it enqueues a new connection.  We also implemented
 two different types of wakeups, \verb+signal+ to wake only one
 sleeping thread, and \verb+broadcast+ to wake up all sleeping threads.
 This intentionally matches POSIX condition variables, and we compare
-the performance implications of the two. The second optimization used
-an atomic integer to store the number of items in the queue, and have
+the performance implications of the two. The second optimization uses
+an atomic integer to store the number of items in the queue, where
 enqueuers increment, and dequeuers decrement on success. This let us
 cut down both the number of calls to a \verb+futex+ wakeup function,
 as the accepting thread only has to wakeup threads when the queue
@@ -300,6 +309,10 @@ one). Furthermore, this allows dequeuers to determine whether they can
 sleep by checking the length of the queue, instead of polling on the
 dequeue operation. Both of these optimizations were used in the
 \verb+msq-server+ and the \verb+lcrq-server+.
+
+% TODO - explain how this is similar to eventcounts
+Our final solution for coordinating sleeps bears a passing similarity
+to event counts, which are essentially lock-free condition variables.
 
 \section{Testing strategy}
 
@@ -318,9 +331,9 @@ For testing, we make heavy use of HP's \verb+httperf+ utility, which
 allows sending adjusting the per-second requests rate and setting
 timeouts, and which has the crucial feature of continuing to send
 requests without recieving replies from the server
-\cite{mosberger1998httperf}. This tool, combined with a fast enough
-connection to the server, allows us to max out our servers' capacity
-for concurrency.
+\cite{mosberger1998httperf}. This tool, combined with a fast
+enough connection to the server, allows us to max out our servers'
+capacity for concurrency.
 
 Our tests were run between two identical rack servers housed in the
 same building. Each server has two quad-core Intel Xeon L5420 2.50 GHz
@@ -329,13 +342,27 @@ have 16 GB of RAM, both run Ubuntu 14.04.2 LTS (Linux kernel version
 3.13.0-46-generic), and both have a 1TB HP Proliant HardDrive for
 storage.
 
-\verb+nginx+, \verb+lighttpd+, and our servers all send
-differently-size response headers, and these headers are on the same
-order of magnitude as or larger than the 10 byte to 1 kilobyte files
-we test with. To normalize the number of bytes sent in each response,
-we decided on 300 bytes as our default total response size and
-requested a file of \verb+300 - server_header_size+ bytes for each
-server.
+It should be noted that while \verb+nginx+, \verb+lighttpd+,
+\verb+apache+ and our servers all send differently-size response
+headers, we chose not to normalize filesize to compensate. Our servers
+send a header of \verb+18b+, while \verb+nginx+, \verb+lighttpd+, and
+\verb+apache+ send headers on the order of \verb+200b+.
+
+\subsection{System tuning}
+
+In all tests run with \verb+httperf+ we use the \verb+--hog+ option,
+which ensures that the \verb+httperf+ uses the fully available
+ephemeral port range. This option is particularly necessary for
+long-running tests with repeated requests for small files, as the
+default available port range can become quickly exhausted. Beacuse our
+tests were always run with a single client IP, we ran into issues with
+repeated test iterations, in which the majority of available ports
+would linger in the \verb+TIME_WAIT+ state. These lingering ports
+would cause uncharacteristically bad performance on the latency and
+throughput workloads. To maintain port availability over multiple
+subsequent test, we set \verb+net.ipv4.tcp_fin_timeout+ to one second
+and set both \verb+net.ipv4.tcp_tw_recycle+ and
+\verb+net.ipv4.tcp_tw_reuse+ to 0.
 
 \subsection{Server latency}
 
@@ -378,6 +405,19 @@ particularly that of \verb+locked-server+. This is exactly as expected
 as increased lock contention is more expensive than increased CAS
 retry contention in the MS-queue or increased FAA contention in the
 LCRQ.
+
+\subsubsection{Explanation of comparative performance of commodity
+  servers}
+
+\verb+nginx+ completes the latency workload roughly 16\% faster than
+our queued servers. With filesize, network latency, physical machine
+characteristics, and OS tuning controlled for, we find it reasonable
+that \verb+nginx+'s main performance benefit comes from its use of
+\verb+epoll+ to distributed open connections to workers. For clarity,
+our system is defined as the combination of a lock-free SPMC queue and
+
+% - why is nginx faster: translates to why is epoll faster?
+% - 
 
 \subsection{Server throughput}
 
