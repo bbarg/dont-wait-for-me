@@ -445,34 +445,22 @@ and set both \verb+net.ipv4.tcp_tw_recycle+ and
 \subsection{Server latency}
 
 \begin{Figure}
-\includegraphics[width=\linewidth]{img/latencynthreads2.png}
-\captionof{figure}{Latency test results using signal and broadcast
-  semantics, versus number of worker threads}
-\end{Figure}
-\begin{Figure}
-  \includegraphics[width=\linewidth]{img/latencyncores.png}
-  \captionof{figure}{Latency versus number of cores at with selected
-    numbers of worker threads}
-\end{Figure}
-\begin{Figure}
-  \includegraphics[width=\linewidth]{img/commodityserverlatencies.png}
-  \captionof{figure}{When number of worker threads equals number of
-    hardware threads, our servers outperform \texttt{apache} and \texttt{lighttpd} on
-    the latency workload but are slower than \texttt{nginx}}
-\end{Figure}
-\begin{Figure}
-\includegraphics[width=\linewidth]{img/latencyfilesize.png}
-\captionof{figure}{All of our servers experience a significant latency
-  spike for files around 100Kb, likely due to network saturation}
-\end{Figure}
-
 This is a really simple experiment designed to test the server request
 latency. We use \verb+httperf+ to send increasing numbers of requests
 as fast as possible, and measured the total time required to process
 those requests. Larger numbers of files generate longer running test
 times, but this gives a better measurement of average processing rate
 (requests/second) that takes into account nondeterministic factors
-like TCP/IP warmup, network noise, filesystem caching and other factors.
+like TCP/IP warmup, network noise, filesystem caching and other factors. All tests unless otherwise noted were performed with requests for a 300 kB total 
+payload.  
+
+We chose to test our servers' performance by running the \verb+httperf+
+process on the same physical machine and testing over \verb+localhost+ which provides a really stable connection, measured to have a bandwith of 21.2 Gbits/sec +/- 1.2. This helps reduce the influence that external network factors have on our test. 
+
+\includegraphics[width=\linewidth]{img/latencynthreads2.png}
+\captionof{figure}{Latency test results using signal and broadcast
+  semantics, versus number of worker threads}
+\end{Figure}
 
 The latency performance of each of these servers varies drastically
 based on the thread wakeup policy used. Specifically, do they
@@ -487,7 +475,40 @@ servers to approach the ideal performance. Unsurprisingly, using
 particularly that of \verb+locked-server+. This is exactly as expected
 as increased lock contention is more expensive than increased CAS
 retry contention in the MS-queue or increased FAA contention in the
-LCRQ.
+LCRQ. Overall, the \verb+locked+ server has the worst latency performance,
+especially with \verb+broadcast+ and LCRQ has the best, though the difference
+between LCRQ and MS-queue server latency is really minor with 
+\verb+broadcast+ and essentially nonexistant with \verb+signal+
+
+\begin{Figure}
+  \includegraphics[width=\linewidth]{img/latencyncores.png}
+  \captionof{figure}{Latency versus number of cores at with selected
+    numbers of worker threads}
+\end{Figure}
+
+Since the workload for this test is entirely serial, we hypothesized that
+increasing the number of CPUs available doesn't benefit the latency
+performance. While this was true for the lock free servers, whose performance
+either degraded slightly or remained constant, it did not hold for the locked server running with \verb+signal+ on 64 threads. Performance improved by
+almost 10 percent when increasing the number of available cores from 1 to 8. 
+This makes sense given that locked data structures scale extremely poorly under
+heavy overutilization of resources (64 threads/core) compared to lock free 
+data structures. Therefore increasing the number of cores available provided 
+the benefit of reducing the degree of overutilization of the available hardware. 
+
+\begin{Figure}
+\includegraphics[width=\linewidth]{img/latencyfilesize.png}
+\captionof{figure}{All of our servers experience a significant latency
+  spike for files around 100Kb, likely due to network saturation}
+\end{Figure}
+This test served as part of our rationale for only testing latency with small 
+file sizes. As file size increases, eventually, the network gets saturated, and the test doesn't really measure variation in network performance as much as in network, and takes needlessly longer transfer time.  
+\begin{Figure}
+\includegraphics[width=\linewidth]{img/commodityserverlatencies.png}
+\captionof{figure}{When number of worker threads equals number of
+  hardware threads, our servers outperform \texttt{apache} and \texttt{lighttpd} on
+  the latency workload but are slower than \texttt{nginx}}
+\end{Figure}
 
 \subsubsection{Explanation of comparative performance of commodity
   servers}
