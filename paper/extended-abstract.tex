@@ -578,20 +578,27 @@ and its hard to draw any conclusions from these results.
 
 \verb+perf+ testing revealed flat profiles for the throughput
 workload, but provided meaningful differentiation between signal and
-broadcast semantics on the latency workload.
+broadcast semantics on the latency workload, as well as explaining in
+terms of queue contention the scaling of the latency workload over
+number of threads.
 
-% include nthreads graph here
+\begin{Figure}
+\includegraphics[width=\linewidth]{img/perf-latency-nthreads.png}
+\captionof{figure}{Contribution of \texttt{futex} waiting and waking
+  to execution of the latency workload on queued servers using signal
+  semantics, scaling over number of threads. Note that this graph is
+  not normalized for total execution time (i.e. the percentages are of
+  different wall-clock times).}
+\end{Figure}
 
-
+The \verb+perf+ results illustrate the resilience of various queue
+algorithms to oversubscription, and they confirm the thread scaling
+behavior of the latency workload. Here, ``wait'' and ``wake'' refer to
+the underlying \verb+futex+ system calls that perform signaling and
+waiting for a signal. We see that \verb+msq+ suffers from significant
+spurious wake-ups past 8 threads. [...]
 
 \section{Future work}
-
-To this point, our lock-free server implementations have been done
-rather naively. We propose several possible performance optimizations
-to push the performance of \verb+msq-server+ and \verb+lcrq-server+
-closer to that of \verb+nginx+ and \verb+lighttpd+. In certain cases,
-such as application-level content caching, these are optimizations
-that already exist in the aforementioned applications.
 
 \subsection{Application level content-cache}
 While the OS maintains a file buffer cache, using it requires the
@@ -632,9 +639,9 @@ reference within operations on the object and a periodic scanning of
 the global list of hazard pointers to lazily free nodes. We
 acknowledge that performance for \verb+lcrq-server+ and
 \verb+msq-server+ would likely be slower with a hazard pointer
-implementation, but we view generating research claims via server
-profiling as a higher priority in our current research than the
-production of a hazard pointers implementation.
+implementation, but we viewed comparing server performance as a higher
+priority in our research than the production of a hazard pointers
+implementation.
 
 \subsection{Creating a fully lock-free application}
 
