@@ -1,0 +1,10 @@
+total_connections	total_requests	total_replies	total_test_duration	connection_rate_per_sec	connection_time_avg	connection_time_max	reply_time_response	reply_time_transfer	reply_size_header	reply_size_content	reply_size_footer	reply_size_total	reply_status_1xx	reply_status_2xx	reply_status_3xx	reply_status_4xx	reply_status_5xx	cpu_time_user_sec	cpu_time_system_sec	cpu_time_user_pct	cpu_time_system_pct	cpu_time_total_pct	net_io_kb_sec	net_io_bps	errors_total	errors_client_timeout	errors_socket_timeout	errors_conn_refused	errors_conn_reset	errors_fd_unavail	errors_addr_unavail	errors_ftab_full	errors_other
+30000	30000	30000	14.999	2000.2	0.5	2.2	0.2	0.0	19.0	281.0	0.0	300.0	0	30000	0	0	0	9.54	5.42	63.6	36.2	99.8	720.8	5.9*10^6	0	0	0	0	0	0	0	0	0
+45000	44968	44966	14.999	3000.2	0.5	13.9	0.3	0.0	19.0	281.0	0.0	300.0	0	44966	0	0	0	8.89	6.07	59.3	40.5	99.7	1080.3	8.9*10^6	34	34	0	0	0	0	0	0	0
+60000	59986	59958	15.006	3998.3	0.7	8.9	0.3	0.0	19.0	281.0	0.0	300.0	0	59958	0	0	0	8.76	6.20	58.4	41.3	99.7	1439.9	11.8*10^6	42	42	0	0	0	0	0	0	0
+75000	74886	74718	15.003	4999.1	1.3	14.4	0.6	0.0	19.0	281.0	0.0	300.0	0	74718	0	0	0	7.61	7.35	50.7	49.0	99.7	1795.4	14.7*10^6	282	282	0	0	0	0	0	0	0
+90000	89581	89176	14.999	6000.3	3.2	88.5	1.6	0.1	19.0	281.0	0.0	300.0	0	89176	0	0	0	6.89	8.07	45.9	53.8	99.7	2144.3	17.6*10^6	824	824	0	0	0	0	0	0	0
+30000	29961	29892	15.005	1999.3	8.4	100.7	4.1	0.0	19.0	281.0	0.0	300.0	0	29892	0	0	0	8.61	6.36	57.4	42.4	99.8	718.2	5.9*10^6	108	108	0	0	0	0	0	0	0
+45000	42235	36064	15.117	2976.7	24.4	109.4	12.9	0.1	19.0	281.0	0.0	300.0	0	36064	0	0	0	6.84	8.24	45.3	54.5	99.8	887.2	7.3*10^6	8936	8936	0	0	0	0	0	0	0
+60000	59932	59787	15.076	3979.8	1.4	13.1	0.7	0.0	19.0	281.0	0.0	300.0	0	59787	0	0	0	8.22	6.82	54.5	45.2	99.7	1429.7	11.7*10^6	213	213	0	0	0	0	0	0	0
+75000	74149	72925	15.013	4995.8	4.4	106.0	2.4	0.1	19.0	281.0	0.0	300.0	0	72925	0	0	0	7.35	7.61	49.0	50.7	99.7	1755.9	14.4*10^6	2075	2075	0	0	0	0	0	0	0

@@ -3,7 +3,7 @@ import csv
 
 def rows_from_filename(name):
     name = name[:-4]            # chop of the '.tsv'
-    return name.split('_')      # fields delimited by '_'
+    return name.split('_')[:4]      # fields delimited by '_'
 
 header = ''
 all_rows = []
