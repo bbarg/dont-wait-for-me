@@ -435,19 +435,24 @@ identifying execution hot-spots for the queued servers, we focused on
 the \verb+task-clock+ and \verb+cpu-clock+ software events, which
 measure the total time that various functions spend executing across
 the system's CPU cores. 
-
 Our tests were run between two identical rack servers housed in the
 same building. Each server has two quad-core Intel Xeon L5420 2.50 GHz
 processors, each of which have with a 12 MB L2 cache. Both servers
 have 16 GB of RAM, both run Ubuntu 14.04.2 LTS (Linux kernel version
 3.13.0-46-generic), and both have a 1TB HP Proliant HardDrive for
 storage.
-
 It should be noted that while \verb+nginx+, \verb+lighttpd+,
 \verb+apache+ and our servers all send differently-size response
 headers, we chose not to normalize filesize to compensate. Our servers
 send a header of \verb+18b+, while \verb+nginx+, \verb+lighttpd+, and
 \verb+apache+ send headers on the order of \verb+200b+.
+
+We chose to test our servers' performance by running the \verb+httperf+
+process on the same physical machine and testing over \verb+localhost+ which
+provides a really stable connection, measured to have a bandwith of 21.2 Gbits/
+sec +/- 1.2. This helps reduce the influence that external network factors have on our test results. Similarly, we chose to mostly test with small file sizes to not only spend minimum time transferring data on the network, but 
+also minimize the effects of varying disk I/O performance, hardware and filesystem caches, and at really large file sizes, memory bottlenecks. Repeatedly requesting a small file allows for that file to remain in the hardware and directory cache, and minimizes all of those external variations. However, we also found that in-application file caching a lot of potential 
+to improve sever performance, as discussed in \ref{app-cache}. 
 
 \subsection{System tuning}
 
@@ -467,7 +472,6 @@ and set both \verb+net.ipv4.tcp_tw_recycle+ and
 
 \subsection{Server latency}
 
-\begin{Figure}
 This is a really simple experiment designed to test the server request
 latency. We use \verb+httperf+ to send increasing numbers of requests
 as fast as possible, and measured the total time required to process
@@ -477,9 +481,7 @@ times, but this gives a better measurement of average processing rate
 like TCP/IP warmup, network noise, filesystem caching and other factors. All tests unless otherwise noted were performed with requests for a 300 kB total 
 payload.  
 
-We chose to test our servers' performance by running the \verb+httperf+
-process on the same physical machine and testing over \verb+localhost+ which provides a really stable connection, measured to have a bandwith of 21.2 Gbits/sec +/- 1.2. This helps reduce the influence that external network factors have on our test. 
-
+\begin{Figure}
 \includegraphics[width=\linewidth]{img/latencynthreads2.png}
 \captionof{figure}{Latency test results using signal and broadcast
   semantics, versus number of worker threads}
@@ -533,15 +535,15 @@ file sizes. As file size increases, eventually, the network gets saturated, and 
   the latency workload but are slower than \texttt{nginx}}
 \end{Figure}
 
-% \subsubsection{Explanation of comparative performance of commodity
-%   servers}
+\subsubsection{Explanation of comparative performance of commodity
+   servers}
 
-% \verb+nginx+ completes the latency workload roughly 16\% faster than
-% our queued servers. With filesize, network latency, physical machine
-% characteristics, and OS tuning controlled for, we find it reasonable
-% that \verb+nginx+'s main performance benefit comes from its use of
-% \verb+epoll+ to distribute open connections to workers. For clarity,
-% our system is defined as the combination of a lock-free SPMC queue and
+\verb+nginx+ completes the latency workload roughly 16\% faster than
+our queued servers. With filesize, network latency, physical machine
+characteristics, and OS tuning controlled for, we find it reasonable
+that \verb+nginx+'s main performance benefit comes from its use of
+\verb+epoll+ to distribute open connections to workers. For clarity,
+our system is defined as the combination of a lock-free SPMC queue and
 
 % - why is nginx faster: translates to why is epoll faster?
 % - 
