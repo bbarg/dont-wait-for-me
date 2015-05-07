@@ -1,5 +1,7 @@
 \documentclass[twoside,10pt]{article}
 
+\usepackage{fancyvrb}
+
 % ------
 % Fonts and typesetting settings
 \usepackage[sc]{mathpazo}
@@ -225,37 +227,41 @@ server scalability were system bus hardware design flaws
 continues to be an issue as recently as 2012
 \cite{geneves2012analysis}.
 
-\section{Implementation }
-As of the current state of our research, we are testing three naive
-implementations of thread-pooled, queue-based web servers, which we
-refer to from here on as \verb+locked-server+, \verb+msq-server+, and
-\verb+lcrq-server+. These implementations serve static content on a
-single port, with worker threads sleeping if the work queue is
-empty. A single acceptor thread loops on accept and adds connections
-to the queue (in the form of client socket file descriptors) as they
-arrive. All three servers are written solely in C and use the POSIX
-sockets library directly to create and serve client sockets. By
-default, the servers support logging of incoming connections to
-\verb+stdout+, although in Section 4 we observe a marked performance
-increase when logging is disabled.
+\section{Implementation}
+
+We test three implementations of thread-pooled, queue-based web
+servers, which we refer to from here on as \verb+locked-server+,
+\verb+msq-server+, and \verb+lcrq-server+. These implementations serve
+static content on a single port, with worker threads sleeping if the
+work queue is empty. A single acceptor thread loops on accept and adds
+connections to the queue (in the form of client socket file
+descriptors) as they arrive. All three servers are written solely in C
+and use the POSIX sockets library directly to create and serve client
+sockets. By default, the servers support logging of incoming
+connections to \verb+stdout+, although in Section 4 we observe a
+marked performance increase when logging is disabled.
 
 It should be clarified that none of \verb+locked-server+,
 \verb+msq-server+, or \verb+lcrq-server+ are intended as full-featured
 and robust servers that would at this point in time be used to replace
-existing servers (although the their feature-set isn't extremely far
-away from that of \verb+lighttpd+). Our goal is to compare event-based
-and queue-based server architectures under extremely high load, so we
-have chosen minimal queue-based implementation to isolate the
-performance of the queue within the server.
+existing servers (although the their feature-set is not extremely far
+away from that of \verb+lighttpd+). Our goal is to compare
+event-based, queue-based, and fork-on-request server architectures
+under extremely high load, so we have chosen minimal queue-based
+implementation to isolate the performance of the queue within the
+server.
 
-Also, we must stress that the servers as a whole are emphatically not 
-lock free. They use lock free queues for inter thread communication, but 
-everything else such writing logs to disk, accessing files, or allocating 
-memory is done with standard library functions and system calls. The progress
-guarantees of lock free algorithms are valuable, however, this paper aims to 
-evaluate performance within a web server program. 
+Also, we must stress that the servers as a whole are emphatically not
+lock-free. They use lock-free queues for inter thread communication,
+but everything else such writing logs to disk, accessing files, or
+allocating memory is done with standard library functions and system
+calls. While the progress guarantees of lock free algorithms are
+valuable, this paper is more concerned with the potential performance
+benefits from using lock-free data structures as part of a
+not necessarily lock-free application.
 
-We implemented web servers using three different parallel queue algorithms, as detailed below. 
+We implemented web servers using three different parallel queue
+algorithms, as detailed below.
 
 \subsection{\texttt{locked-server}}
 
@@ -312,9 +318,39 @@ sleep by checking the length of the queue, instead of polling on the
 dequeue operation. Both of these optimizations were used in the
 \verb+msq-server+ and the \verb+lcrq-server+.
 
-% TODO - explain how this is similar to eventcounts
-Our final solution for coordinating sleeps bears a passing similarity
-to event counts, which are essentially lock-free condition variables.
+The semantic for \verb+queue_put+ requires little modification from
+the that of the provided lock-free queue implementations. The only
+addition is to increment our counter variable (\verb+waiter+) and to
+signal if the queue moves from empty to nonempty. Here, \verb+enqueue+
+is from the lock-free queue implementation, and it always
+succeeds. \verb+futex_signal+ is a light wrapper that wakes one thread
+waiting on \verb+counter+.
+\begin{Verbatim}[numbers=left,
+                 fontsize=\small]
+void queue_put(struct queue *q, int sock) {
+
+    enqueue((Object) sock, 0); 	
+
+    if (__sync_fetch_and_add(&counter, 1) == 0) { 
+        futex_signal(&counter); 
+    }
+}
+\end{Verbatim}
+
+\verb+queue_get+ is slightly more complicated. Here, \verb+dequeue+
+comes from the lock-free queue implementations and returns -1 if the
+queue is empty. \verb+cond_wait+ is a light wrapper over the
+\verb+futex+ system call that places the thread on a kernel wait queue
+for the address of \verb+counter+. We use a \verb+do{...}while()+ loop
+because the \verb+futex+ system call automatically checks whether the
+queue is empty (i.e.  \verb+counter == 0+) before sleeping. We need to
+wrap \verb+cond_wait+ with a loop anyways to avoid spurious dequeues.
+
+% source code for queue_get goes here
+\begin{Verbatim}[numbers=left,
+                 fontsize=\small]
+
+\end{Verbatim}
 
 \section{Testing strategy}
 
