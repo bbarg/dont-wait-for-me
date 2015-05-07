@@ -50,7 +50,7 @@
 % ------
 % Maketitle metadata
 \title{\vspace{-15mm}%
-  \fontsize{24pt}{10pt}\selectfont \textbf{Don't Wait For Me:}\\
+  \fontsize{24pt}{10pt}\selectfont \textbf{Don't Rely On Me:}\\
   \textbf{Evaluating the Applicability of Lock-free Queues in High-Load Web
     Servers} } 
 \author{%
@@ -128,15 +128,17 @@ The related work for this paper can be split into three sections:
 queue implementations, web server architectures, and web
 server benchmarking.
 
-\subsection{Condition variables}
+\subsection{Blocking locked queues}
 
 The idea of singaling mechanism for locked data structures first
 proposed by Hoare in his seminal 1974 paper on monitors
-\cite{hoare1974monitors}. A standard for conditional variables in
-which the signaling threads holds the mutex while signaling was
-included as an extension to the POSIX standard in 1992 and was
-implemented by Mueller in 1993
-\cite{ieee1992pthreads,mueller1993library}.
+\cite{hoare1974monitors}. As an example within the paper, Hoare
+describes the use of condition variables to signal the appearemnce of
+new elements in an SPSC queue, and he describes a generalization to
+multiple consumers. A standard for conditional variables in which the
+signaling threads holds the mutex while signaling was included as an
+extension to the POSIX standard in 1992 and was implemented by Mueller
+in 1993 \cite{ieee1992pthreads,mueller1993library}.
 
 \subsection{Lock-free queues}
 
@@ -382,6 +384,11 @@ and set both \verb+net.ipv4.tcp_tw_recycle+ and
     hardware threads, our servers outperform \texttt{apache} and \texttt{lighttpd} on
     the latency workload but are slower than \texttt{nginx}}
 \end{Figure}
+\begin{Figure}
+\includegraphics[width=\linewidth]{img/latencyfilesize.png}
+\captionof{figure}{All of our servers experience a significant latency
+  spike for files around 100Kb, likely due to network saturation}
+\end{Figure}
 
 This is a really simple experiment designed to test the server request
 latency. We use \verb+httperf+ to send increasing numbers of requests
@@ -422,9 +429,10 @@ our system is defined as the combination of a lock-free SPMC queue and
 \subsection{Server throughput}
 
 \begin{Figure}
-\includegraphics[width=\linewidth]{img/latencyfilesize.png}
-\captionof{figure}{All of our servers experience a significant latency
-  spike for files around 100Kb, likely due to network saturation}
+\includegraphics[width=\linewidth]{img/throughputmedian.png}
+\captionof{figure}{Throughput data is noisy when comparing signal and
+  broadcast semantics. The lock-free servers perform better with
+  signal, but the locked server favors broadcast.}
 \end{Figure}
 
 Here, requests are sent from a client program at incrementally
@@ -446,7 +454,7 @@ entire test becomes invalid.
 Unfortunately, the restrictive parameters of this test make it very noisy, 
 and its hard to draw any conclusions from these results. 
 
-\section{Future optimizations}
+\section{Future work}
 
 To this point, our lock-free server implementations have been done
 rather naively. We propose several possible performance optimizations
@@ -455,27 +463,17 @@ closer to that of \verb+nginx+ and \verb+lighttpd+. In certain cases,
 such as application-level content caching, these are optimizations
 that already exist in the aforementioned applications.
 
-\subsection{Disabling logging}
-By default, \verb+lighthttp+ does no logging, while \verb+nginx+ logs
-to disk, where it can take advantage of buffered I/O. Conversely, the
-default behavior for our servers is to log requests to \verb+stdout+,
-which is line-buffered and therefore incurs a heavy cost at high
-request rates. In preliminary testing, disabling \verb+stdout+ logging
-for \verb+lcrq-server+ netted a roughly 10\% performance increase. We
-plan to test the \verb+lcrq-server+'s performance when logging to a
-file as well.
-
 \subsection{Application level content-cache}
 While the OS maintains a file buffer cache, using it requires the
 syscall overhead from \verb+read+. To reduce this overhead, several
-existing servers (including \verb+nginx+) maintain a user-level file
-cache so that more content can be served via user-space memory
-access. We have not yet implemented a full cache solution, but we did
-simulate the effects of such a cache by modifying \verb+lcrq-server+
-to send static global buffer instead of pulling the requested file
-system. This preliminary test also demonstrated a 10\% performance
-improvement. We thus expect a fully-featured user-space content cache
-to contribute a meaningful speedup.
+existing servers (including \verb+nginx+) optionally maintain a
+user-level file cache so that more content can be served via
+user-space memory access. We have not yet implemented a full cache
+solution, but we did simulate the effects of such a cache by modifying
+\verb+lcrq-server+ to send static global buffer instead of pulling the
+requested file system. This preliminary test also demonstrated a 10\%
+performance improvement. We thus expect a fully-featured user-space
+content cache to contribute a meaningful speedup.
 
 \subsection{Robust lock-free memory management}
 
@@ -507,8 +505,6 @@ acknowledge that performance for \verb+lcrq-server+ and
 implementation, but we view generating research claims via server
 profiling as a higher priority in our current research than the
 production of a hazard pointers implementation.
-
-\section{Future Work}
 
 \subsection{Creating a fully lock-free application}
 
@@ -568,37 +564,42 @@ benefits on a network frame processing workflow
 
 \section{Conclusion}
 
-Thus far, it has been challenging to max out load on the servers we
-are testing. Some of these bottlenecks come from system imposed limits
-on open file descriptors that we have just begun to modify
-(\verb+ulimit -n+), while others come from limitations of
-\verb+httperf+ (we may need to recompile \verb+httperf+ to use more
-than 1024 file descriptors).
+We have implemented a set of HTTP/1.0 web servers that serve static
+content and that rely on a lock-free SPMC queue to distribute active
+connections to worker threads. In adapting normally non-blocking
+algorithms to a blocking-wait context, we implemented a simple
+condition variable system with the Linux \verb+futex+ system call and
+an atomically modified integer which keeps track of the size of the
+queue. Our benchmarks of these servers show a clear latency advantage
+for both the LCRQ and MSQ lock-free queues over a locked variant, as
+well over both fork-on-request-based and event-based commodity
+servers. While throughput tests do not exhibit a clear advantage for
+the lock-free servers, these tests do demonstrate that the lock-free
+servers perform similary to \verb+lighttpd+ and \verb+apache+.
 
-We have also been testing solely small file sizes with the motivation
-that such tests better expose the internal limitations of each server,
-rather than that of the TCP/IP stack. There may be certain behaviors
-associated with larger files that we havenot yet considered.
+However, our tests show that the event-based server \verb+nginx+ holds
+a clear performance advantage over our lock-free servers. We attribute
+\verb+nginx+'s advantage to its use of the \verb+epoll+
+event-notification system, which incurs less system call overhead and
+eliminates spurious wakeup. Given the success of \verb+nginx+, it
+appears that any possible further benefit from incorporating lock-free
+data structres into event-notification systems will come at the kernel
+level and not in user space.
 
-We also plan to use the Linux profiling tool \verb+perf_events+ to
-identify hot-spots in \verb+lcrq-server+. Preliminary tests with this
-tool indicate a number of potential bottlenecks, including spurious
-futex waking when the server is under high load.
+% For the remainder of our project, we consider the following to be our
+% main deliverables:
 
-For the remainder of our project, we consider the following to be our
-main deliverables:
-
-\begin{compactitem}
-\item A comprehensive test bench available as a git repository that
-  can be used to replicate our tests
-\item Results from a large number of iterations of our test bench,
-  with the goal of decididing on meaningful error bounds for
-  performance measurements
-\item A heavily-optimized version of \verb+lcrq-server+, utilizing the
-  optimization techniques suggested in Section IV
-\item Itemized conclusions explaining \emph{why} \verb+lcrq-server+
-  performs better or worse on specified tests.
-\end{compactitem}
+% \begin{compactitem}
+% \item A comprehensive test bench available as a git repository that
+%   can be used to replicate our tests
+% \item Results from a large number of iterations of our test bench,
+%   with the goal of decididing on meaningful error bounds for
+%   performance measurements
+% \item A heavily-optimized version of \verb+lcrq-server+, utilizing the
+%   optimization techniques suggested in Section IV
+% \item Itemized conclusions explaining \emph{why} \verb+lcrq-server+
+%   performs better or worse on specified tests.
+% \end{compactitem}
 
 \end{multicols}
 
