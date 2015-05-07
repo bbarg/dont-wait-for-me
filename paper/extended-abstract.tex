@@ -86,16 +86,15 @@
   performance of multithreaded web servers that use these queues to
   perform inter-thread communication for a producer-consumer
   workflow. We then compared our web servers to existing open source
-  options like \verb+nginx+ and \verb+lighttpd+, to compare the
-  relative performance of a server architecture driven by queue
-  message passing versus event polling or thread spawning, to see how
-  effective lock free queues are for this class of
-  program. Preliminary results on an 8 core system show that servers
+  options \verb+nginx+, \verb+lighttpd+, and \verb+apache+. This
+  comparison evaluates the relative performance of a server
+  architecture driven by queue message passing versus event polling or
+  thread spawning to see how effective lock free queues are for this
+  class of program. Results from on an 8 core system show that servers
   built with various lock free queues are significantly more
-  performant than ones built with globally locked queues, even
-  approaching the performance of \verb+nginx+ when in-application file
-  caching is implemented. However, further experiments and
-  optimiztions are needed before we can draw further conclusions.
+  performant than ones built with globally locked queues, particularly
+  under latency measurements. The lock free servers also outperform
+  \verb+apache+ and \verb+lighttpd+ by 
 \end{abstract}
 
 \begin{multicols}{2}
