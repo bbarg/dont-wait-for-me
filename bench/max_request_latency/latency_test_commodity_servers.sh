@@ -24,21 +24,22 @@ local filename=$server_name"_"$ncores"_"$nthreads"_"$req_file
 
 echo "Testing " $filename
 
-for i in 10 100 1000 10000
+for i in 10 100  
 do 
     timeout 60s httperf --hog --server $server --port $port --uri $uri --num-conns $i --timeout $time > /dev/null 2>&1
 
 done 
-num_conns=100000
+num_conns=10000
 
-echo "Testing $server_name ncores: $ncores uri: $uri nthreads: $nthreads port $port num-conns $num_conns"
-timeout 60s httperf --hog --server $server --port $port --uri $uri --num-conns $num_conns --timeout $time >> $path$filename 2>/dev/null 
+#echo "Testing $server_name ncores: $ncores uri: $uri nthreads: $nthreads port $port num-conns $num_conns"
+#timeout 60s httperf --hog --server $server --port $port --uri $uri --num-conns $num_conns --timeout $time >> $path$filename 2>/dev/null 
 
-for i in {0..15..1}
+for i in {0..7..1}
 do
     #echo $i
     echo "Testing $server_name ncores: $ncores uri: $uri nthreads: $nthreads port $port num-conns $num_conns"
     timeout 60s httperf --hog --server $server --port $port --uri $uri --num-conns $num_conns --timeout $time >> $path$filename 2>/dev/null 
+    sleep 45 
     
 done 
 
@@ -91,7 +92,7 @@ done
 
 #iter_ncores
 
-#lighttpd -D -f ~/lighttpd.conf 
+#lighttpd -D -f ~/lighttpd.conf &  
 #iter_requests lighttpd 281b 2222
 #killall lighttpd 
 
