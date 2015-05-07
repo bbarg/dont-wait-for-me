@@ -589,19 +589,48 @@ number of threads.
 \begin{Figure}
 \includegraphics[width=\linewidth]{img/perf-latency-nthreads.png}
 \captionof{figure}{Contribution of \texttt{futex} waiting and waking
-  to execution of the latency workload on queued servers using signal
-  semantics, scaling over number of threads. Note that this graph is
-  not normalized for total execution time (i.e. the percentages are of
-  different wall-clock times).}
+  to execution of the latency workload on queued servers using
+  broadcast semantics, scaling over number of threads. Note that this
+  graph is not normalized for total execution time (i.e. the
+  percentages are of different wall-clock times).}
 \label{fig:perf-latency-nthreads}
 \end{Figure}
 
-The \verb+perf+ results illustrate the resilience of various queue
-algorithms to oversubscription, and they confirm the thread scaling
-behavior of the latency workload. Here, ``wait'' and ``wake'' refer to
-the underlying \verb+futex+ system calls that perform signaling and
-waiting for a signal. For the locked queue, we see a gentle increase
-the cost of waking other threads [...]
+The \verb+perf+ results illustrate the varying resilience of each
+queue algorithm to oversubscription, and they demonstrate that
+broadcast semantics are prone to many spurious wakeups on the latency
+workload. Here, ``wait'' and ``wake'' refer to the underlying
+\verb+futex+ system calls that perform signaling and waiting for a
+signal. Oversubscription occurs starting at 16 software threads, since
+there are only 8 available processing cores. 
+
+We find that waking and waiting are affected differently by
+oversubscription. For \verb+msq-server+ and \verb+locked-server+,
+waits remain fairly stable while underscribed, but climb considerably
+when oversubscribed. Conversely, wake behavior for these two servers
+climbs while undersubscribed and then levels off while
+oversubscribed. The large spike for \verb+msq-server+ is likely due to
+its fast fail path for dequeues on an empty queue, which result in
+threads spending more time sleeping. This thus increases the
+probability of a greater number of sleeping threads for each wake call
+by the signaling thread.
+
+Unlike the other servers, \verb+lcrq-server+ has a distinctly flat
+notification profile. This corresponds to fewer failed dequeues
+overall.
+
+\begin{Figure}
+\includegraphics[width=\linewidth]{img/signal-broadcast-8.png}
+\captionof{figure}{Contribution of \texttt{futex} waiting and waking
+  to execution of the latency workload on queued servers using
+  broadcast semantics, with nthreads fixed at 8.}
+\label{fig:perf-latency-nthreads}
+\end{Figure}
+
+\verb+perf+ testing also reveals a clear benefit for the signaling
+semantic over broadcast, and it demonstrates that the signaling
+mechanism is not the bottleneck separating the performance of the
+three queued servers. While
 
 \section{Future work}
 
