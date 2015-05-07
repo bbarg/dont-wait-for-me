@@ -292,7 +292,7 @@ locking queue replaced by an implementation of Michael and Scott's
 seminal MPMC lock-free queue \cite{synch-1.0.1}. POSIX
 condition variables can no longer be used to implement sleeping on an
 empty queue; instead we use a light wrapper over the \verb+futex+ system
-call. This particular implementation of the Michael and Scott queue
+call \cite{drepper2005futexes}. This particular implementation of the Michael and Scott queue
 returns -1 whenever a \verb+dequeue+ fails on an empty queue. 
 
 \subsection{\texttt{lcrq-server}}
@@ -584,25 +584,29 @@ broadcast semantics on the latency workload, as well as explaining in
 terms of queue contention the scaling of the latency workload over
 number of threads.
 
+% note that these are all broadcast
+
 \begin{Figure}
-\includegraphics[width=\linewidth]{img/perf-latency-nthreads.png}
+\includegraphics[width=\linewidth]{img/.png}
 \captionof{figure}{Contribution of \texttt{futex} waiting and waking
   to execution of the latency workload on queued servers using signal
   semantics, scaling over number of threads. Note that this graph is
   not normalized for total execution time (i.e. the percentages are of
   different wall-clock times).}
+\label{fig:perf-latency-nthreads}
 \end{Figure}
 
 The \verb+perf+ results illustrate the resilience of various queue
 algorithms to oversubscription, and they confirm the thread scaling
 behavior of the latency workload. Here, ``wait'' and ``wake'' refer to
 the underlying \verb+futex+ system calls that perform signaling and
-waiting for a signal. We see that \verb+msq+ suffers from significant
-spurious wake-ups past 8 threads. [...]
+waiting for a signal. For the locked queue, we see a gentle increase
+the cost of waking other threads [...]
 
 \section{Future work}
 
 \subsection{Application level content-cache}
+\label{app-cache}
 While the OS maintains a file buffer cache, using it requires the
 syscall overhead from \verb+read+. To reduce this overhead, several
 existing servers (including \verb+nginx+) optionally maintain a
