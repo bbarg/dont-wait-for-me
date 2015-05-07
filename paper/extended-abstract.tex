@@ -549,14 +549,6 @@ our system is defined as the combination of a lock-free SPMC queue and
 % - 
 
 \subsection{Server throughput}
-
-\begin{Figure}
-\includegraphics[width=\linewidth]{img/throughputmedian.png}
-\captionof{figure}{Throughput data is noisy when comparing signal and
-  broadcast semantics. The lock-free servers perform better with
-  signal, but the locked server favors broadcast.}
-\end{Figure}
-
 Here, requests are sent from a client program at incrementally
 increasing rates, and all the requests have a specified
 timeout. The maximum rate that the server can respond completely to
@@ -575,6 +567,14 @@ entire test becomes invalid.
 
 Unfortunately, the restrictive parameters of this test make it very noisy, 
 and its hard to draw any conclusions from these results. 
+
+
+\begin{Figure}
+\includegraphics[width=\linewidth]{img/throughputmedian.png}
+\captionof{figure}{Throughput data is noisy when comparing signal and
+  broadcast semantics. The lock-free servers perform better with
+  signal, but the locked server favors broadcast.}
+\end{Figure}
 
 \subsection{\texttt{perf} testing}
 
