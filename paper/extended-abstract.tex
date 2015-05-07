@@ -94,34 +94,49 @@
   built with various lock free queues are significantly more
   performant than ones built with globally locked queues, particularly
   under latency measurements. The lock free servers also outperform
-  \verb+apache+ and \verb+lighttpd+ by 
+  \verb+apache+ by 30\% and \verb+lighttpd+ by 8\% on the latency
+  workload. However, throughput results are less conclusive, and
+  \verb+nginx+ clearly outperforms all other servers in both of our
+  benchmarks. Given the apparent performance benefits of a
+  highly-optimized event-based server architecture, we conclude that
+  future work integrating lock free data structures into web servers
+  should come either for application servers (which have greater need
+  for data structures that scale under very high concurrency) or at
+  the kernel level in event-notification code (such as the Linux
+  kernel's \verb+epoll+ system).
 \end{abstract}
 
 \begin{multicols}{2}
-  \lettrine[nindent=0em,lines=3]{I}n the past 20 years, there has been
-  an explosion of research into lock-free synchronization. Lock-free
-  objects possess numerous provable guarantees lacked by locked
-  objects, including deadlock immunity and async-signal safety. In
-  addition, operations on lock-free data structures have the potential
-  to be significantly faster than those on comparable locked objects,
-  particuarly under heavy contention. In a world where heavily
-  multicore processors are widely available, user-level applications
-  are well-behooved to use data structures optimized for the
-  distributed nature of multiple cores.
+ 
+\section{Introduction}
+
+\lettrine[nindent=0em,lines=3]{I}n the past 20 years, there has been
+an explosion of research into lock-free synchronization. Lock-free
+objects possess numerous provable guarantees lacked by locked objects,
+including deadlock immunity and async-signal safety. In addition,
+operations on lock-free data structures have the potential to be
+significantly faster than those on comparable locked objects,
+particuarly under heavy contention. In a world where heavily multicore
+processors are widely available, user-level applications are
+well-behooved to use data structures optimized for the distributed
+nature of multiple cores.
   
 High performance web servers provide an intriguing application for
-lock-free algorithms, given that they deal with extremely high
-concurrency and in certain situations would benefit from progress
-guarantees (a good example would be an ad exchange server where each
-request represents explicit monetary value). We observe that most
-modern servers targeted towards high-concurrency (in particular
-\verb+nginx+) have shied away from user-level job distribution and
-instead rely on kernel mechanisms for reporting on file descriptors
-(the so-called "event-based" server architecture). Our goal is to
-explore the limitations of a thread-pooled server architecture that
-uses a queue for job distribution through comparison with both a
-locked version of the same architecture and with popular modern
-high-performance web servers.
+lock-free algorithms. Web servers potentially need to serve high
+numbers of concurrent requests, and the data structures affected by
+those requests need to scale under heavy concurrency. In certain
+situations, web servers also benefit from progress guarantees (a good
+example is an ad exchange server where each request represents
+explicit monetary value).
+
+We observe that most modern servers targeted towards high-concurrency
+(in particular \verb+nginx+) have shied away from user-level job
+distribution and instead rely on kernel mechanisms for reporting on
+file descriptors (the so-called "event-based" server
+architecture). Our goal is to explore the limitations of a
+thread-pooled server architecture that uses a queue for job
+distribution through comparison with both a locked version of the same
+architecture and with popular modern high-performance web servers.
 
 \section{Related Work}
 
@@ -405,13 +420,21 @@ Our testing strategy centers around two main goals:
   web servers \verb+nginx+, \verb+lighttpd+, and \verb+apache+?
 \end{compactitem}
 
-For testing, we make heavy use of HP's \verb+httperf+ utility, which
-allows sending adjusting the per-second requests rate and setting
-timeouts, and which has the crucial feature of continuing to send
-requests without recieving replies from the server
-\cite{mosberger1998httperf}. This tool, combined with a fast
-enough connection to the server, allows us to max out our servers'
-capacity for concurrency.
+For load testing, we make heavy use of HP's \verb+httperf+ utility,
+which allows sending adjusting the per-second requests rate and
+setting timeouts, and which has the crucial feature of continuing to
+send requests without recieving replies from the server
+\cite{mosberger1998httperf}. This tool, combined with a fast enough
+connection to the server, allows us to max out our servers' capacity
+for concurrency.
+
+For application profiling, we make use of Linux's native
+\verb+perf_events+ interface for counting software and hardware events
+\cite{weaver2013linux}. Because we are primarily concerned with
+identifying execution hot-spots for the queued servers, we focused on
+the \verb+task-clock+ and \verb+cpu-clock+ software events, which
+measure the total time that various functions spend executing across
+the system's CPU cores. 
 
 Our tests were run between two identical rack servers housed in the
 same building. Each server has two quad-core Intel Xeon L5420 2.50 GHz
@@ -510,15 +533,15 @@ file sizes. As file size increases, eventually, the network gets saturated, and 
   the latency workload but are slower than \texttt{nginx}}
 \end{Figure}
 
-\subsubsection{Explanation of comparative performance of commodity
-  servers}
+% \subsubsection{Explanation of comparative performance of commodity
+%   servers}
 
-\verb+nginx+ completes the latency workload roughly 16\% faster than
-our queued servers. With filesize, network latency, physical machine
-characteristics, and OS tuning controlled for, we find it reasonable
-that \verb+nginx+'s main performance benefit comes from its use of
-\verb+epoll+ to distributed open connections to workers. For clarity,
-our system is defined as the combination of a lock-free SPMC queue and
+% \verb+nginx+ completes the latency workload roughly 16\% faster than
+% our queued servers. With filesize, network latency, physical machine
+% characteristics, and OS tuning controlled for, we find it reasonable
+% that \verb+nginx+'s main performance benefit comes from its use of
+% \verb+epoll+ to distribute open connections to workers. For clarity,
+% our system is defined as the combination of a lock-free SPMC queue and
 
 % - why is nginx faster: translates to why is epoll faster?
 % - 
@@ -550,6 +573,16 @@ entire test becomes invalid.
 
 Unfortunately, the restrictive parameters of this test make it very noisy, 
 and its hard to draw any conclusions from these results. 
+
+\subsection{\texttt{perf} testing}
+
+\verb+perf+ testing revealed flat profiles for the throughput
+workload, but provided meaningful differentiation between signal and
+broadcast semantics on the latency workload.
+
+% include nthreads graph here
+
+
 
 \section{Future work}
 
