@@ -85,25 +85,25 @@
   authors, we present a measurement and comparison study of the
   performance of multithreaded web servers that use these queues to
   perform inter-thread communication for a producer-consumer
-  workflow. We then compared our web servers to existing open source
+  workflow. We then compare our web servers to existing open source
   options \verb+nginx+, \verb+lighttpd+, and \verb+apache+. This
   comparison evaluates the relative performance of a server
   architecture driven by queue message passing versus event polling or
-  thread spawning to see how effective lock free queues are for this
-  class of program. Results from on an 8 core system show that servers
-  built with various lock free queues are significantly more
-  performant than ones built with globally locked queues, particularly
-  under latency measurements. The lock free servers also outperform
-  \verb+apache+ by 30\% and \verb+lighttpd+ by 8\% on the latency
-  workload. However, throughput results are less conclusive, and
-  \verb+nginx+ clearly outperforms all other servers in both of our
-  benchmarks. Given the apparent performance benefits of a
-  highly-optimized event-based server architecture, we conclude that
-  future work integrating lock free data structures into web servers
-  should come either for application servers (which have greater need
-  for data structures that scale under very high concurrency) or at
-  the kernel level in event-notification code (such as the Linux
-  kernel's \verb+epoll+ system).
+  thread spawning to see how effective lock-free queues are for this
+  class of program. Results from testing on an eight core system show
+  that servers built with various lock-free queues perform
+  significantly better than a server built with globally locked
+  queues, particularly under latency measurements. The lock-free
+  servers also outperform \verb+apache+ by 30\% and \verb+lighttpd+ by
+  8\% on the latency workload. However, throughput results are less
+  conclusive, and \verb+nginx+ clearly outperforms all other servers
+  in both of our benchmarks. Given the apparent performance benefits
+  of a highly-optimized event-based server architecture, we conclude
+  that future work integrating lock-free data structures into web
+  servers should come either for application servers (which have
+  greater need for data structures that scale under very high
+  concurrency) or at the kernel level in event-notification code (such
+  as the Linux kernel's \verb+epoll+ system).
 \end{abstract}
 
 \begin{multicols}{2}
@@ -116,7 +116,7 @@ objects possess numerous provable guarantees lacked by locked objects,
 including deadlock immunity and async-signal safety. In addition,
 operations on lock-free data structures have the potential to be
 significantly faster than those on comparable locked objects,
-particuarly under heavy contention. In a world where heavily multicore
+particularly under heavy contention. In a world where heavily multicore
 processors are widely available, user-level applications are
 well-behooved to use data structures optimized for the distributed
 nature of multiple cores.
@@ -146,13 +146,13 @@ server benchmarking.
 
 \subsection{Blocking locked queues}
 
-The idea of singaling mechanism for locked data structures first
+The idea of a signaling mechanism for locked data structures first
 proposed by Hoare in his seminal 1974 paper on monitors
 \cite{hoare1974monitors}. As an example within the paper, Hoare
-describes the use of condition variables to signal the appearemnce of
+describes the use of condition variables to signal the appearance of
 new elements in an SPSC queue, and he describes a generalization to
-multiple consumers. A standard for conditional variables in which the
-signaling threads holds the mutex while signaling was included as an
+multiple consumers. A standard for condition variables in which the
+signaling thread holds the mutex while signaling was included as an
 extension to the POSIX standard in 1992 and was implemented by Mueller
 in 1993 \cite{ieee1992pthreads,mueller1993library}.
 
@@ -193,7 +193,7 @@ The two most popular (and open-source) servers in current usage are
 \verb+apache+ and \verb+nginx+, and each is the prime exponent of a
 particular philosophy for web server architecture. \verb+apache+
 follows the fork-on-request model, where each connection is assigned a
-separate process that fulfills the requests and them terminatoes
+separate process that fulfills the requests and them terminates
 \cite{fielding1997apache}. \verb+nginx+ uses an ``event-based''
 architecture, where a fixed number of worker threads poll a set of
 file descriptors \cite{syosevnginx}. This approach relies on the
@@ -235,7 +235,7 @@ with workloads that attempt to isolate the performance of the TCP/IP
 stack and of application-level activity respectively
 \cite{hashemian2013improving}. Veal and Foong present a detailed
 analysis of the performance scalability of multicore web servers, from
-which they concludue that the primary bottlenecks inhibiting web
+which they conclude that the primary bottlenecks inhibiting web
 server scalability were system bus hardware design flaws
 \cite{veal2007performance}. Geneves shows that bus saturation
 continues to be an issue as recently as 2012
@@ -269,7 +269,7 @@ Also, we must stress that the servers as a whole are emphatically not
 lock-free. They use lock-free queues for inter thread communication,
 but everything else such writing logs to disk, accessing files, or
 allocating memory is done with standard library functions and system
-calls. While the progress guarantees of lock free algorithms are
+calls. While the progress guarantees of lock-free algorithms are
 valuable, this paper is more concerned with the potential performance
 benefits from using lock-free data structures as part of a
 not necessarily lock-free application.
@@ -297,25 +297,25 @@ returns -1 whenever a \verb+dequeue+ fails on an empty queue.
 
 \subsection{\texttt{lcrq-server}}
 
-Also a modified copy of \verb+http-sever+, \verb+lcrq-server+ replaces
-the locking queue with an implementation of Morrisson and Afek's
-so-called LCRQ \cite{lcrq-source}. The LCRQ is a linked list of ring buffers that uses
-fetch-and-add as its primary atomic primitive (when performing
-operations on an inidividual ring buffer), falling back to
+A modified copy of \verb+http-sever+, \verb+lcrq-server+ replaces the
+locking queue with an implementation of Morrisson and Afek's so-called
+LCRQ \cite{lcrq-source}. The LCRQ is a linked list of ring buffers
+that uses fetch-and-add as its primary atomic primitive (when
+performing operations on an individual ring buffer), falling back to
 compare-and-swap only when the new ring buffers need to be added to
 the linked list. Although LCRQ is an MPMC queue, we only have a single
 accepting thread and thus a single enqueuer. Like for the Michael
-Scott queue, \verb+dequeue+ returns -1 on an empty queue. 
+Scott queue, \verb+dequeue+ returns -1 on an empty queue.
 
 \subsection{Queue optimizations}
 
-We could not use POSIX condition variables with the lock free queues
+We could not use POSIX condition variables with the lock-free queues
 because condition variables are bound to a specific lock, and that
 would be identical to the locked queue. However, our initial
 implementations relied on worker threads polling the queues and
 spinning on failed dequeues. While this approach worked, it was very
 inefficient. 
-\verb+counter+.
+
 \begin{Verbatim}[numbers=left,
                  fontsize=\small]
 #define MAX_WAKEUP 64
@@ -364,11 +364,15 @@ sleep by checking the length of the queue, instead of polling on the
 dequeue operation. Both of these optimizations were used in the
 \verb+msq-server+ and the \verb+lcrq-server+. 
 
-Since these optimizations don't really modify the semantics of \verb+enqueue+
-at all, the function \verb+queue_put+ requires little modification over 
-the \verb+enqueue+ operation as defined for the lock free queues. Here, \verb+enqueue+ is guaranteed to always succeed, and then we atomically increment the queue length, which is stored in \verb+futex_addr+, signalling worker threads if the queue was originally empty.   
-\begin{Verbatim}[numbers=left,
-                 fontsize=\small]
+Since these optimizations don't really modify the semantics of
+\verb+enqueue+ at all, the function \verb+queue_put+ requires little
+modification over the \verb+enqueue+ operation as defined for the
+lock-free queues. Here, \verb+enqueue+ is guaranteed to always
+succeed, and then we atomically increment the queue length, which is
+stored in \verb+futex_addr+, signaling worker threads if the queue was
+originally empty.
+
+\begin{Verbatim}[numbers=left, fontsize=\small]
 void queue_put(struct queue *q, 
     int* futex_addr, int sock) {
     enqueue(q, sock); 	
@@ -401,7 +405,7 @@ int queue_get(struct queue *q, int* futex_addr) {
         (ret = dequeue(q)) == -1){
         futex_cond_wait(futex_addr, 0);
     }
-    //successful deque - now decrement and get out 
+    //successful dequeue - now decrement and get out 
     __sync_fetch_and_sub(futex_addr, 1);
     return ret; 
 }
@@ -416,14 +420,14 @@ Our testing strategy centers around two main goals:
   architecture and how could a lock-free queue possibly circumvent
   those?
 \item How closely can an optimized version of a lock-free-queue based
-  webserver approach the performance (under heavy load) of existing
+  web server approach the performance (under heavy load) of existing
   web servers \verb+nginx+, \verb+lighttpd+, and \verb+apache+?
 \end{compactitem}
 
 For load testing, we make heavy use of HP's \verb+httperf+ utility,
 which allows sending adjusting the per-second requests rate and
 setting timeouts, and which has the crucial feature of continuing to
-send requests without recieving replies from the server
+send requests without receiving replies from the server
 \cite{mosberger1998httperf}. This tool, combined with a fast enough
 connection to the server, allows us to max out our servers' capacity
 for concurrency.
@@ -447,12 +451,20 @@ headers, we chose not to normalize filesize to compensate. Our servers
 send a header of \verb+18b+, while \verb+nginx+, \verb+lighttpd+, and
 \verb+apache+ send headers on the order of \verb+200b+.
 
-We chose to test our servers' performance by running the \verb+httperf+
-process on the same physical machine and testing over \verb+localhost+ which
-provides a really stable connection, measured to have a bandwith of 21.2 Gbits/
-sec +/- 1.2. This helps reduce the influence that external network factors have on our test results. Similarly, we chose to mostly test with small file sizes to not only spend minimum time transferring data on the network, but 
-also minimize the effects of varying disk I/O performance, hardware and filesystem caches, and at really large file sizes, memory bottlenecks. Repeatedly requesting a small file allows for that file to remain in the hardware and directory cache, and minimizes all of those external variations. However, we also found that in-application file caching a lot of potential 
-to improve sever performance, as discussed in \ref{app-cache}. 
+We chose to test our servers' performance by running the
+\verb+httperf+ process on the same physical machine and testing over
+\verb+localhost+ which provides a really stable connection, measured
+to have a bandwidth of 21.2 Gbits/ sec +/- 1.2. This helps reduce the
+influence that external network factors have on our test
+results. Similarly, we chose to mostly test with small file sizes to
+not only spend minimum time transferring data on the network, but also
+minimize the effects of varying disk I/O performance, hardware and
+filesystem caches, and at really large file sizes, memory
+bottlenecks. Repeatedly requesting a small file allows for that file
+to remain in the hardware and directory cache, and minimizes all of
+those external variations. However, we also found that in-application
+file caching a lot of potential to improve sever performance, as
+discussed in \ref{app-cache}.
 
 \subsection{System tuning}
 
@@ -460,11 +472,11 @@ In all tests run with \verb+httperf+ we use the \verb+--hog+ option,
 which ensures that the \verb+httperf+ uses the fully available
 ephemeral port range. This option is particularly necessary for
 long-running tests with repeated requests for small files, as the
-default available port range can become quickly exhausted. Beacuse our
+default available port range can become quickly exhausted. Because our
 tests were always run with a single client IP, we ran into issues with
 repeated test iterations, in which the majority of available ports
 would linger in the \verb+TIME_WAIT+ state. These lingering ports
-would cause uncharacteristically bad performance on the latency and
+cause uncharacteristically bad performance on the latency and
 throughput workloads. To maintain port availability over multiple
 subsequent test, we set \verb+net.ipv4.tcp_fin_timeout+ to one second
 and set both \verb+net.ipv4.tcp_tw_recycle+ and
@@ -478,8 +490,9 @@ as fast as possible, and measured the total time required to process
 those requests. Larger numbers of files generate longer running test
 times, but this gives a better measurement of average processing rate
 (requests/second) that takes into account nondeterministic factors
-like TCP/IP warmup, network noise, filesystem caching and other factors. All tests unless otherwise noted were performed with requests for a 300 kB total 
-payload.  
+like TCP/IP warmup, network noise, filesystem caching and other
+factors. All tests unless otherwise noted were performed with requests
+for a 300 kB total payload.
 
 \begin{Figure}
 \includegraphics[width=\linewidth]{img/latencynthreads2.png}
@@ -496,14 +509,15 @@ performance should be constant regardless of the number of threads or
 cores available, since only one network request ever needs to be
 processed at a time. Employing \verb+futex-signal+ allows all three
 servers to approach the ideal performance. Unsurprisingly, using
-\verb+futex-broadcast+ signficantly degrades server performance,
+\verb+futex-broadcast+ significantly degrades server performance,
 particularly that of \verb+locked-server+. This is exactly as expected
 as increased lock contention is more expensive than increased CAS
 retry contention in the MS-queue or increased FAA contention in the
-LCRQ. Overall, the \verb+locked+ server has the worst latency performance,
-especially with \verb+broadcast+ and LCRQ has the best, though the difference
-between LCRQ and MS-queue server latency is really minor with 
-\verb+broadcast+ and essentially nonexistant with \verb+signal+
+LCRQ. Overall, the \verb+locked+ server has the worst latency
+performance, especially with \verb+broadcast+ and LCRQ has the best,
+though the difference between LCRQ and MS-queue server latency is
+really minor with \verb+broadcast+ and essentially non-existant with
+\verb+signal+
 
 \begin{Figure}
   \includegraphics[width=\linewidth]{img/latencyncores.png}
@@ -511,15 +525,18 @@ between LCRQ and MS-queue server latency is really minor with
     numbers of worker threads}
 \end{Figure}
 
-Since the workload for this test is entirely serial, we hypothesized that
-increasing the number of CPUs available doesn't benefit the latency
-performance. While this was true for the lock free servers, whose performance
-either degraded slightly or remained constant, it did not hold for the locked server running with \verb+signal+ on 64 threads. Performance improved by
-almost 10 percent when increasing the number of available cores from 1 to 8. 
-This makes sense given that locked data structures scale extremely poorly under
-heavy overutilization of resources (64 threads/core) compared to lock free 
-data structures. Therefore increasing the number of cores available provided 
-the benefit of reducing the degree of overutilization of the available hardware. 
+Since the workload for this test is entirely serial, we hypothesized
+that increasing the number of CPUs available doesn't benefit the
+latency performance. While this was true for the lock-free servers,
+whose performance either degraded slightly or remained constant, it
+did not hold for the locked server running with \verb+signal+ on 64
+threads. Performance improved by almost 10 percent when increasing the
+number of available cores from 1 to 8.  This makes sense given that
+locked data structures scale extremely poorly under heavy
+overutilization of resources (64 threads/core) compared to lock-free
+data structures. Therefore increasing the number of cores available
+provided the benefit of reducing the degree of overutilization of the
+available hardware.
 
 \begin{Figure}
 \includegraphics[width=\linewidth]{img/latencyfilesize.png}
@@ -538,17 +555,22 @@ file sizes. As file size increases, eventually, the network gets saturated, and 
 \subsubsection{Explanation of comparative performance of commodity
    servers}
 
-\verb+nginx+ completes the latency workload roughly 16\% faster than
-our queued servers. With filesize, network latency, physical machine
-characteristics, and OS tuning controlled for, we find it reasonable
-that \verb+nginx+'s main performance benefit comes from its use of
-\verb+epoll+ to distribute open connections to workers. For clarity,
-our system is defined as the combination of a lock-free SPMC queue and
+ \verb+nginx+ completes the latency workload roughly 16\% faster than
+ our queued servers. With filesize, network latency, physical machine
+ characteristics, and OS tuning controlled for, we find it reasonable
+ that \verb+nginx+'s main performance benefit comes from its use of
+ \verb+epoll+ to distribute open connections to
+ workers. We \verb+epoll+'s advantage to:
 
-% - why is nginx faster: translates to why is epoll faster?
-% - 
+ \begin{itemize}
+ \item reduced system call overhead
+ \item direct access to I/O devices from the notification code (since
+   \verb+epoll+ is a kernel mechanism
+ \item complete avoidance of thread waking overhead
+ \end{itemize}
 
 \subsection{Server throughput}
+
 Here, requests are sent from a client program at incrementally
 increasing rates, and all the requests have a specified
 timeout. The maximum rate that the server can respond completely to
@@ -568,13 +590,35 @@ entire test becomes invalid.
 Unfortunately, the restrictive parameters of this test make it very noisy, 
 and its hard to draw any conclusions from these results. 
 
-
 \begin{Figure}
 \includegraphics[width=\linewidth]{img/throughputmedian.png}
 \captionof{figure}{Throughput data is noisy when comparing signal and
   broadcast semantics. The lock-free servers perform better with
   signal, but the locked server favors broadcast.}
 \end{Figure}
+
+Our primary obstacles to drawing conclusions from the throughput data
+are the noticeable dip in performance for all servers for high request
+rates and the non-normal distribution of errors. The error
+distribution at each rate for each server is mostly zero with
+occasional outliers that range as high as 5\%, which is an order of
+magnitude higher than the median rate. Unfortunately, we do not have
+an explanation (beyond random chance or poor test design) for the
+near-uniform dip in throughput performance from 5000 to 6000 requests
+per second.
+
+We suspect that our data is noisy because of the inherent limitations
+of our testing setup. While localhost testing works reasonably for
+latency, a single client machine with the same specs as the server
+machine is unable to overload the server machine, forcing us to use an
+imperfect throughput metric. Because we could not overload the server,
+we could not establish a clear plateau in throughput performance where
+our servers become saturated, and instead had to extrapolate error
+rate from lower connection rates.
+
+Further, our throughput measurement greatly favors commodity servers:
+\verb+nginx+, \verb+apache+, and \verb+lighttpd+ all reported mostly
+zero errors, with occasional runs producing around 10 errors.
 
 \subsection{\texttt{perf} testing}
 
@@ -606,7 +650,7 @@ there are only 8 available processing cores.
 
 We find that waking and waiting are affected differently by
 oversubscription. For \verb+msq-server+ and \verb+locked-server+,
-waits remain fairly stable while underscribed, but climb considerably
+waits remain fairly stable while undersubscribed, but climb considerably
 when oversubscribed. Conversely, wake behavior for these two servers
 climbs while undersubscribed and then levels off while
 oversubscribed. The large spike for \verb+msq-server+ is likely due to
@@ -630,7 +674,7 @@ overall.
 \verb+perf+ testing also reveals a clear benefit for the signaling
 semantic over broadcast, and it demonstrates that the signaling
 mechanism is not the bottleneck separating the performance of the
-three queued servers. While
+three queued servers. While 
 
 \section{Future work}
 
@@ -655,7 +699,7 @@ memory reclamation strategy in place for \verb+msq-server+ and
 simply calls \verb+malloc+ within each queue implementation to create
 a new node. While this reliance on a locking \verb+malloc+ admittedly
 affects the supposed progress guarantee of the lock-free algorithms we
-use, we hold that it should not signicantly effect performance, as
+use, we hold that it should not significantly effect performance, as
 only the accepting thread is contending for the \verb+malloc+
 lock. Usage or implementation of a lock-free (or otherwise robust)
 memory allocator would likely \emph{improve} server performance, given the
@@ -681,7 +725,7 @@ implementation.
 \subsection{Creating a fully lock-free application}
 
 Both \verb+msq-server+ and \verb+lcrq-server+ incorporate a lock-free
-queue, but each relies on mutiple locked subsystems, both in the C
+queue, but each relies on multiple locked subsystems, both in the C
 standard library and in the Linux kernel (e.g. the sockets library,
 \verb+malloc+, the \verb+futex+ system call, and the in-kernel TCP/IP
 stack). While some of these systems have user-space solutions\---there
@@ -706,7 +750,7 @@ when removing lock on the \verb+epoll+ algorithm's fast path
 Implementation have been attempted for lock-free kernels that support
 scalability for higher numbers of threads \cite{massalin1992lock}, but
 its authors admit that similar performance can be achieved with
-user-level thread libraries. A fully-lock free system would be most
+user-level thread libraries. A fully lock-free system would be most
 beneficial for applications that absolutely require high levels of
 thread contention; given the sucess of event-based architectures, web
 servers do not appear to fit this model.
@@ -747,7 +791,7 @@ for both the LCRQ and MSQ lock-free queues over a locked variant, as
 well over both fork-on-request-based and event-based commodity
 servers. While throughput tests do not exhibit a clear advantage for
 the lock-free servers, these tests do demonstrate that the lock-free
-servers perform similary to \verb+lighttpd+ and \verb+apache+.
+servers perform similarly to \verb+lighttpd+ and \verb+apache+.
 
 However, our tests show that the event-based server \verb+nginx+ holds
 a clear performance advantage over our lock-free servers. We attribute
@@ -755,23 +799,8 @@ a clear performance advantage over our lock-free servers. We attribute
 event-notification system, which incurs less system call overhead and
 eliminates spurious wakeup. Given the success of \verb+nginx+, it
 appears that any possible further benefit from incorporating lock-free
-data structres into event-notification systems will come at the kernel
+data structures into event-notification systems will come at the kernel
 level and not in user space.
-
-% For the remainder of our project, we consider the following to be our
-% main deliverables:
-
-% \begin{compactitem}
-% \item A comprehensive test bench available as a git repository that
-%   can be used to replicate our tests
-% \item Results from a large number of iterations of our test bench,
-%   with the goal of decididing on meaningful error bounds for
-%   performance measurements
-% \item A heavily-optimized version of \verb+lcrq-server+, utilizing the
-%   optimization techniques suggested in Section IV
-% \item Itemized conclusions explaining \emph{why} \verb+lcrq-server+
-%   performs better or worse on specified tests.
-% \end{compactitem}
 
 \end{multicols}
 
